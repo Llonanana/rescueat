@@ -59,7 +59,8 @@
 
   // ---------- 分頁 ----------
   function showView(name) {
-    $$(".tab").forEach((t) => t.classList.toggle("is-active", t.dataset.view === name));
+    $$(".tab").forEach((t) => { const on = t.dataset.view === name; t.classList.toggle("is-active", on); on ? t.setAttribute("aria-current", "page") : t.removeAttribute("aria-current"); });
+    window.scrollTo({ top: 0 });
     $$(".view").forEach((v) => v.classList.toggle("is-active", v.id === `view-${name}`));
     if (name === "map" && map) setTimeout(() => map.invalidateSize(), 0);
     if (name === "combo") renderCombos();
@@ -134,7 +135,13 @@
     refreshMarkers();
     // 一開始把政大正門附近 600 公尺內的店家都框進畫面（手機、電腦都適用）
     const near = SHOPS.filter((x) => distOf(x.id) < 600).map((x) => [x.lat, x.lng]);
-    map.fitBounds(L.latLngBounds([[GATE.lat, GATE.lng], ...near]), { padding: [36, 24], maxZoom: 18 });
+    if (map.getSize().x < 600) {
+      // 手機：直接放大到能分清楚有剩食的店與正門
+      const live = SHOPS.filter((x) => liveOf(x.id).length).map((x) => [x.lat, x.lng]);
+      map.setView(L.latLngBounds([[GATE.lat, GATE.lng], ...live]).getCenter(), 18);
+    } else {
+      map.fitBounds(L.latLngBounds([[GATE.lat, GATE.lng], ...near]), { paddingTopLeft: [30, 50], paddingBottomRight: [120, 40], maxZoom: 18 });
+    }
     // 拉遠時，洽談中的店縮成小圓點，避免標籤疊在一起
     const zoomClass = () => map.getContainer().classList.toggle("zoom-lo", map.getZoom() < 18);
     map.on("zoomend", zoomClass); zoomClass();
@@ -145,9 +152,10 @@
     for (const s of SHOPS) {
       const live = liveOf(s.id);
       const on = filt.shop === s.id ? " is-on" : "";
+      const n = live.reduce((t, x) => t + x.qty, 0);
       const html = live.length
-        ? `<span class="shop-pin live${on}"><b>${esc(shortName(s))}</b><span>${live.reduce((t, x) => t + x.qty, 0)} 份・$${Math.min(...live.map((x) => x.deal))} 起</span></span>`
-        : `<span class="shop-pin${on}"><b>${esc(shortName(s))}</b><span>洽談中</span></span>`;
+        ? `<span class="shop-pin live${on}"><span class="drop"><b>${n}</b></span><span class="lbl"><b>${esc(shortName(s))}</b><span>$${Math.min(...live.map((x) => x.deal))} 起</span></span></span>`
+        : `<span class="shop-pin${on}"><span class="dot"></span><span class="lbl"><b>${esc(shortName(s))}</b><span>洽談中</span></span></span>`;
       markers[s.id].setIcon(L.divIcon({ className: "", html, iconSize: null, iconAnchor: [0, 0] }));
       markers[s.id].setZIndexOffset(live.length ? 1000 : 0);
     }
@@ -309,7 +317,7 @@
         </div>
         <ul class="badges"><li>有主食</li><li>有蛋白質</li><li>有蔬菜</li>${parts.every((x) => !x.fried) ? "<li>非油炸</li>" : ""}</ul>
         <p class="meta">約 ${fmt(kcal)} 大卡，蛋白質 ${fmt(prot, 1)} g${est ? `（${CFG.ESTIMATE_NOTE}）` : ""}。取餐路線：${shops.map(esc).join("、")}，從正門走約 ${distLabel(c.route.total)}。</p>
-        <div class="actions" style="display:flex;gap:8px;margin-top:10px">
+        <div class="combo-act">
           <button class="btn" data-reserve-combo="${parts.map((x) => x.id).join(",")}">預訂這組</button>
           <a class="btn ghost" href="${walkLink(c.route.order)}" target="_blank" rel="noopener">看取餐路線</a>
         </div>

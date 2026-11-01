@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="RescuEat">
+  <!-- 披風 -->
+  <path d="M60 14 C86 12 108 28 116 52 C104 46 96 50 92 62 C88 52 80 46 70 48 Z" fill="#2E8B57"/>
+  <!-- 地圖圖釘 -->
+  <path d="M46 8 C24 8 8 25 8 46 C8 70 46 106 46 106 C46 106 84 70 84 46 C84 25 68 8 46 8 Z" fill="#F28C28"/>
+  <circle cx="46" cy="45" r="25" fill="#fff"/>
+  <!-- 碗與葉子 -->
+  <path d="M30 46 H62 C62 56 55 63 46 63 C37 63 30 56 30 46 Z" fill="#2E8B57"/>
+  <rect x="27" y="42" width="38" height="4" rx="2" fill="#1F6B45"/>
+  <path d="M46 40 C44 32 50 26 58 26 C58 34 53 40 46 40 Z" fill="#2E8B57"/>
+  <path d="M44 40 C38 39 34 35 34 31 C39 31 43 34 44 40 Z" fill="#7ED3A0"/>
+</svg>

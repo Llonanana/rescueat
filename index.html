@@ -7,25 +7,35 @@
   <meta name="description" content="政大周邊打烊前剩食地圖：找剩食、跨店組一餐、看營養缺口、用宿舍設備做剩食料理。">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Huninn&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="img/logo.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#FFF4D6">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">
-      <span class="logo" aria-hidden="true">惜</span>
-      <div>
-        <h1>RescuEat</h1>
-        <p class="slogan">政大周邊惜食地圖・月底不吃土</p>
-      </div>
-    </div>
+    <a class="brand" href="./" aria-label="RescuEat 首頁">
+      <img src="img/logo.svg" alt="" width="48" height="48">
+      <span class="wordmark"><span class="w-g">Rescu</span><span class="w-o">Eat</span></span>
+    </a>
+    <p class="slogan">Rescue Food, Rescue Your Wallet!<span>政大周邊惜食地圖</span></p>
     <nav class="tabs" aria-label="主要功能">
-      <button class="tab is-active" data-view="map">剩食地圖</button>
-      <button class="tab" data-view="combo">組一餐</button>
-      <button class="tab" data-view="nutri">我的營養</button>
-      <button class="tab" data-view="recipe">剩食料理</button>
-      <button class="tab" data-view="data">資料來源</button>
+      <button class="tab is-active" data-view="map" aria-current="page">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span>剩食地圖</span>
+      </button>
+      <button class="tab" data-view="combo">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11h16a8 8 0 0 1-16 0Z"/><path d="M12 7c0-2 1.5-3.5 3.5-3.5"/><path d="M3 11h18"/></svg><span>組一餐</span>
+      </button>
+      <button class="tab" data-view="nutri">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg><span>我的營養</span>
+      </button>
+      <button class="tab" data-view="recipe">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 10h14v6a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4Z"/><path d="M3 10h18"/><path d="M9 6c0-1 .5-2 1.5-2M14 6c0-1 .5-2 1.5-2"/></svg><span>剩食料理</span>
+      </button>
+      <button class="tab" data-view="data">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg><span>資料來源</span>
+      </button>
     </nav>
   </header>
 
