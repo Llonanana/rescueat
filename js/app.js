@@ -366,7 +366,7 @@
       (N.tableKcal ? `DRIs 表同年齡同性別的參考值為 ${fmt(N.tableKcal)} 大卡。` : "");
     $("#eaten").innerHTML = eaten.length ? eaten.map((e, i) => {
       const f = foodById[e.id];
-      return `<li><span>${esc(f ? f.n : e.id)} ${fmt(e.g)} g，${fmt((f?.energy_kcal || 0) * e.g / 100)} 大卡</span><button data-del="${i}" aria-label="刪除 ${esc(f?.n)}">刪除</button></li>`;
+      return `<li><span>${esc(f ? friendly(f).main : e.id)} ${fmt(e.g)} g，${fmt((f?.energy_kcal || 0) * e.g / 100)} 大卡</span><button data-del="${i}" aria-label="刪除 ${esc(f?.n)}">刪除</button></li>`;
     }).join("") : `<li class="empty">還沒有紀錄。搜尋上方的食藥署資料庫，把今天吃的東西加進來。</li>`;
     const T = eatenTotals();
     $("#bars").innerHTML = N.targets.map((t) => {
@@ -398,6 +398,18 @@
   // 日常說法 → 食藥署樣品名稱
   const SYN = { 雞胸: "去皮清肉", 雞胸肉: "去皮清肉", 雞腿: "清腿", 雞腿肉: "清腿", 高麗菜: "甘藍", 地瓜: "甘藷", 地瓜葉: "甘藷葉",
     芭樂: "芭樂", 番石榴: "芭樂", 豬排: "豬大里肌", 牛奶: "全脂鮮乳", 鮮奶: "全脂鮮乳", 吐司: "土司", 青菜: "小白菜" };
+  // 食藥署樣品名稱 → 日常說法（只換顯示，資料仍用官方那一筆）
+  const FRIENDLY = [
+    [/^去皮清肉/, "雞胸肉（去皮）"], [/^清腿/, "雞腿肉（去骨）"], [/^骨腿/, "雞腿（帶骨）"],
+    [/^甘藍(?!芽)/, "高麗菜"], [/甘藷葉/, "地瓜葉"], [/甘藷/, "地瓜"], [/^土司/, "吐司"],
+    [/^全脂鮮乳/, "鮮奶（全脂）"], [/^豬大里肌/, "豬里肌"], [/^北蕉/, "香蕉"], [/^大番茄/, "番茄"],
+  ];
+  function friendly(f) {
+    let main = f.n;
+    for (const [re, rep] of FRIENDLY) main = main.replace(re, rep);
+    main = main.replace("平均值", "");
+    return { main, official: main !== f.n ? f.n : "" };
+  }
   function searchFoods(q) {
     q = q.trim(); if (!q) return [];
     const terms = [q, SYN[q]].filter(Boolean);
@@ -410,8 +422,9 @@
         else if (f.a && f.a.split(/[,，、]/).some((a) => a.trim() === t)) best = Math.min(best, 1.5);
         else if (f.a && f.a.includes(t)) best = Math.min(best, 3);
       });
+      if (best === 99) return 99;                    // 沒有命中就不列出
       if (f.n.includes("平均值")) best -= 0.5;      // 平均值最能代表一般食材
-      if (/湯|粉|乾|罐頭/.test(f.n) && !/湯|粉|乾|罐頭/.test(q)) best += 1;
+      if (/湯|粉|乾|罐頭|骨/.test(f.n) && !/湯|粉|乾|罐頭|骨/.test(q)) best += 1;
       return best;
     };
     return FOODS.map((f) => [f, score(f)]).filter(([, s]) => s < 99)
@@ -419,7 +432,10 @@
   }
   $("#foodSearch").addEventListener("input", (e) => {
     const res = searchFoods(e.target.value);
-    $("#foodResults").innerHTML = res.map((f) => `<li><button data-add="${f.id}"><span>${esc(f.n)} <small>${esc(f.g)}</small></span><small>${fmt(f.energy_kcal)} 大卡、蛋白質 ${fmt(f.protein_g ?? 0, 1)} g / 100 g</small></button></li>`).join("")
+    $("#foodResults").innerHTML = res.map((f) => {
+      const nm = friendly(f);
+      return `<li><button data-add="${f.id}"><span>${esc(nm.main)} <small>${esc(f.g)}</small>${nm.official ? `<small class="official">食藥署名稱：${esc(nm.official)}</small>` : ""}</span><small>${fmt(f.energy_kcal)} 大卡、蛋白質 ${fmt(f.protein_g ?? 0, 1)} g / 100 g</small></button></li>`;
+    }).join("")
       || (e.target.value.trim() ? `<li class="hint">資料庫裡找不到「${esc(e.target.value)}」，換個說法試試，例如「雞腿」改「清腿」。</li>` : "");
   });
   $("#foodResults").addEventListener("click", (e) => {

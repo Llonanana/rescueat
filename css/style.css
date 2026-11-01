@@ -332,3 +332,4 @@ dialog::backdrop { background: rgba(31, 45, 77, .55); }
 .zoom-lo .shop-pin:not(.live) > * , .zoom-lo .shop-pin:not(.live)::after { display: none; }
 .zoom-lo .shop-pin.live { font-size: 12px; padding: 3px 8px; }
 .zoom-lo .shop-pin.live b { font-size: 13px; }
+.results .official { display: block; font-size: .75rem; color: var(--muted); }
