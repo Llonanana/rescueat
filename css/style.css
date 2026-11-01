@@ -252,3 +252,83 @@ dialog::backdrop { background: rgba(31, 45, 77, .55); }
 
 /* 文字樣式的按鈕（店名連到地圖） */
 .linklike { background: none; border: 0; padding: 0; font: inherit; color: var(--night-2); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+
+/* ================= v2：更直觀的地圖與清單 ================= */
+.tonight { margin: 0 0 10px; font-size: 1.05rem; line-height: 1.5; }
+.tonight b { font: 1.35rem var(--font-display); color: var(--night); }
+.explain { background: #FFF9E0; border: 1px solid #F0DF9C; border-radius: var(--r-s); padding: 8px 12px; margin-bottom: 14px; font-size: .9rem; }
+.explain summary { cursor: pointer; font-weight: 700; color: #6B5200; }
+.explain p { margin: 8px 0 0; }
+.shop-filter { background: var(--night); color: #fff; border-radius: var(--r-s); padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: .92rem; }
+.shop-filter .linklike { color: var(--sticker); }
+
+/* 依店家分組 */
+.groups { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 16px; }
+.shop-group { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-m); overflow: hidden; }
+.shop-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 12px 14px; background: #F6F8FB; border-bottom: 1px solid var(--line); }
+.shop-head h3 { margin: 0; font-size: 1.1rem; }
+.shop-head p { margin: 2px 0 0; color: var(--muted); font-size: .85rem; }
+.shop-when { display: grid; justify-items: end; gap: 2px; font-size: .85rem; white-space: nowrap; }
+.until { font-weight: 700; color: var(--sticker-ink); }
+
+/* 品項列：左邊是什麼、右邊多少錢、最右邊動作 */
+.rows { list-style: none; margin: 0; padding: 0; }
+.shop-group .rows { padding: 0 14px; }
+#boxes, #nextMeal { display: grid; gap: 10px; }
+#boxes .row, #nextMeal .row { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-m); padding: 12px 14px; }
+.row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 6px 14px; padding: 12px 0; border-top: 1px solid var(--line); }
+.shop-group .row:first-child { border-top: 0; }
+#boxes .row, #nextMeal .row { border-top: 1px solid var(--line); }
+.row.is-out { opacity: .5; }
+.row h4 { margin: 0; font: 700 1rem var(--font-body); }
+.row-main p { margin: 2px 0 0; }
+.row-shop, .row-note { font-size: .85rem; color: var(--muted); }
+.row-note { color: var(--g-veg); font-weight: 700; }
+.row-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: .84rem; color: var(--muted); }
+.row-meta .nutri small { background: #EEF1F5; border-radius: 4px; padding: 0 5px; margin-left: 2px; font-size: .75rem; }
+.tag { background: #E7EEFB; color: var(--g-box); border-radius: 4px; padding: 0 6px; font-size: .78rem; }
+.left.low { color: var(--sticker-ink); font-weight: 700; }
+.cat { display: inline-flex; align-items: center; gap: 5px; font-size: .78rem; font-weight: 700; color: var(--gc); }
+.cat i { width: 8px; height: 8px; border-radius: 50%; background: var(--gc); }
+.row[data-cat="主食"] { --gc: var(--g-staple); }
+.row[data-cat="蛋白質"] { --gc: var(--g-protein); }
+.row[data-cat="蔬菜"] { --gc: var(--g-veg); }
+.row[data-cat="完整餐盒"] { --gc: var(--g-box); }
+.row-price { display: grid; justify-items: end; line-height: 1.2; }
+.row-price .sticker { font-size: 1.35rem; padding: 4px 9px 2px; }
+.row-price .was { font-size: .75rem; color: var(--muted); margin-top: 4px; }
+.row-price .save { font-size: .78rem; font-weight: 700; color: var(--g-veg); }
+.row-act { min-width: 64px; display: flex; justify-content: flex-end; }
+.code { font-size: .78rem; color: var(--muted); text-align: right; line-height: 1.2; }
+.code b { display: block; font: 1.3rem var(--font-display); color: var(--g-veg); letter-spacing: .08em; }
+
+/* 地圖上的店家標籤：有惜食的店是黃色貼紙，洽談中的店是白色小標 */
+.shop-pin {
+  position: absolute; transform: translate(-50%, calc(-100% - 8px));
+  display: grid; text-align: center; white-space: nowrap;
+  background: #fff; color: var(--muted);
+  border: 1px solid #C8CFD8; border-radius: 6px;
+  padding: 3px 8px; font: 12px/1.3 var(--font-body);
+  box-shadow: 0 1px 2px rgba(31, 45, 77, .25); cursor: pointer;
+}
+.shop-pin::after { content: ""; position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%); border: 6px solid transparent; border-bottom: 0; border-top-color: #C8CFD8; }
+.shop-pin b { font-weight: 700; color: var(--text); }
+.shop-pin.live { background: var(--sticker); border-color: #D9AE1C; color: var(--sticker-ink); font-size: 13px; padding: 4px 10px; }
+.shop-pin.live b { font: 15px var(--font-display); color: var(--night); }
+.shop-pin.live::after { border-top-color: #D9AE1C; }
+.shop-pin.is-on { outline: 3px solid var(--night); outline-offset: 1px; }
+.gate-pin { position: absolute; transform: translate(-50%, -50%); background: var(--g-veg); color: #fff; font: 700 12px var(--font-body); padding: 2px 8px; border-radius: 999px; white-space: nowrap; border: 2px solid #fff; }
+.leaflet-control-layers { font: 13px var(--font-body); }
+
+@media (max-width: 860px) {
+  .row { grid-template-columns: 1fr auto; }
+  .row-act { grid-column: 2; justify-content: flex-end; }
+  .tonight b { font-size: 1.2rem; }
+}
+.shop-filter[hidden] { display: none; }
+/* 手機：清單在地圖下方時，捲到店家篩選列要讓出頂部選單的高度 */
+.shop-filter { scroll-margin-top: 130px; }
+.zoom-lo .shop-pin:not(.live) { padding: 0; width: 12px; height: 12px; border-radius: 50%; background: #fff; border: 2px solid var(--night-2); transform: translate(-50%, -50%); }
+.zoom-lo .shop-pin:not(.live) > * , .zoom-lo .shop-pin:not(.live)::after { display: none; }
+.zoom-lo .shop-pin.live { font-size: 12px; padding: 3px 8px; }
+.zoom-lo .shop-pin.live b { font-size: 13px; }

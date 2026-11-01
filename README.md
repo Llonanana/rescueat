@@ -2,7 +2,7 @@
 
 乞丐超人的勝利｜AI 實務專案。政大周邊打烊前的剩食地圖：找剩食、跨店組一份均衡的餐、看今天還缺多少營養、用宿舍設備把剩食煮完。
 
-技術依提案：HTML／CSS／JavaScript＋Leaflet＋OpenStreetMap，資料串接 Google 試算表＋Apps Script，之後部署到 Railway。
+技術依提案：HTML／CSS／JavaScript＋Leaflet（底圖用國土測繪中心臺灣通用電子地圖，可切換 OpenStreetMap），資料串接 Google 試算表＋Apps Script，之後部署到 Railway。
 
 ## 在 VS Code 開起來
 
@@ -66,4 +66,4 @@ python scripts/build_web_data.py
 - 衛福部食藥署 食品營養成分資料集：https://data.gov.tw/dataset/8543
 - 國健署「國人膳食營養素參考攝取量」第八版總表（民國 111 年）
 - 台師大 成人每日均衡飲食建議量：https://web.ntnu.edu.tw/~499002011/evaluation.html
-- 地圖底圖：© OpenStreetMap contributors
+- 地圖底圖：內政部國土測繪中心「臺灣通用電子地圖」（政府資料開放授權）；可切換 © OpenStreetMap contributors

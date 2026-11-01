@@ -67,92 +67,156 @@
   }
   $$(".tab").forEach((t) => t.addEventListener("click", () => showView(t.dataset.view)));
 
-  // ---------- 品項卡 ----------
+  // ---------- 品項 ----------
+  const walkMin = (m) => Math.max(1, Math.ceil(m / 75));          // 步行約 75 公尺／分鐘
+  const saveOf = (it) => it.price - it.deal;
+  const offOf = (it) => Math.round((it.deal / it.price) * 10 * 10) / 10;   // 7 → 「7 折」
   function nutriText(it) {
-    if (it.kcal == null) return `<p class="nutri"><small>營養待店家標示</small></p>`;
-    const src = it.nsrc === "official" ? "店家標示" : `${CFG.ESTIMATE_NOTE}：${esc(it.nnote || "")}`;
-    return `<p class="nutri">${fmt(it.kcal)} 大卡，蛋白質 ${fmt(it.protein, 1)} g <small>（${src}）</small></p>`;
+    if (it.kcal == null) return `<span class="nutri">營養待店家標示</span>`;
+    const src = it.nsrc === "official" ? "店家標示" : CFG.ESTIMATE_NOTE;
+    const tip = it.nsrc === "official" ? "店家官方營養標示" : `${CFG.ESTIMATE_NOTE}：${it.nnote || ""}`;
+    return `<span class="nutri" title="${esc(tip)}">${fmt(it.kcal)} 大卡・蛋白質 ${fmt(it.protein, 1)} g <small>${src}</small></span>`;
   }
   function codeFor(itemId) {
     const r = [...reservations].reverse().find((x) => x.itemIds.includes(itemId));
     return r ? r.code : null;
   }
-  function itemCard(it, { compact = false } = {}) {
-    const shop = shopById[it.shop];
+  // 單一品項（地圖清單、組一餐、下一餐推薦共用）
+  function itemRow(it, { showShop = false, note = "" } = {}) {
     const code = codeFor(it.id);
     const soldOut = it.qty <= 0;
-    const heat = it.micro ? "，可微波" : "";
-    return `<li class="item" data-cat="${esc(it.cat)}">
-      <div>
-        <span class="cat-label">${esc(it.cat)}</span>
+    const shop = shopById[it.shop];
+    return `<li class="row ${soldOut ? "is-out" : ""}" data-cat="${esc(it.cat)}">
+      <div class="row-main">
+        <span class="cat"><i aria-hidden="true"></i>${esc(it.cat)}</span>
         <h4>${esc(it.name)}</h4>
-        <p class="meta"><button class="linklike" data-focus-shop="${esc(it.shop)}">${esc(shop.name)}</button>，${soldOut ? "已被訂完" : `剩 ${it.qty} 份`}，${esc(it.until)} 前取餐，離正門 ${distLabel(distOf(it.shop))}${heat}</p>
-        ${nutriText(it)}
+        ${showShop ? `<p class="row-shop"><button class="linklike" data-focus-shop="${esc(it.shop)}">${esc(shop.name)}</button>，步行 ${walkMin(distOf(it.shop))} 分鐘</p>` : ""}
+        ${note ? `<p class="row-note">${note}</p>` : ""}
+        <p class="row-meta">${nutriText(it)}${it.micro ? `<span class="tag">可微波</span>` : ""}<span class="left ${it.qty <= 1 && !soldOut ? "low" : ""}">${soldOut ? "已訂完" : `剩 ${it.qty} 份`}</span></p>
       </div>
-      <div class="sticker" aria-label="惜食價 ${it.deal} 元，原價 ${it.price} 元"><span class="lbl">惜食價</span><span class="deal">$${it.deal}</span><s>原價 $${it.price}</s></div>
-      ${compact ? "" : `<div class="actions">
-        <button class="btn" data-reserve="${esc(it.id)}" ${soldOut ? "disabled" : ""}>預訂</button>
-        ${code ? `<span>取餐碼 <span class="code-tag">${esc(code)}</span></span>` : ""}
-      </div>`}
+      <div class="row-price">
+        <span class="sticker" title="惜食價：打烊前的出清價">$${it.deal}</span>
+        <span class="was">原價 <s>$${it.price}</s></span>
+        <span class="save">省 $${saveOf(it)}</span>
+      </div>
+      <div class="row-act">
+        ${code ? `<span class="code" title="到店出示取餐碼">取餐碼 <b>${esc(code)}</b></span>`
+               : `<button class="btn" data-reserve="${esc(it.id)}" ${soldOut ? "disabled" : ""}>${soldOut ? "已訂完" : "預訂"}</button>`}
+      </div>
     </li>`;
   }
 
   // ---------- 地圖 ----------
   let map = null;
   const markers = {};
+  function liveOf(shopId) { return items.filter((x) => x.shop === shopId && x.qty > 0); }
   function initMap() {
-    map = L.map("map", { scrollWheelZoom: true }).setView([24.9866, 121.5755], 16);
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    map = L.map("map", { scrollWheelZoom: true, zoomControl: false }).setView([24.98775, 121.5759], 18);
+    L.control.zoom({ position: "bottomright" }).addTo(map);
+    // 預設底圖：內政部國土測繪中心「臺灣通用電子地圖」（政府開放資料，中文標示、定期更新，免金鑰）
+    const nlsc = L.tileLayer("https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}", {
+      maxNativeZoom: 18, maxZoom: 19,
+      attribution: '底圖 &copy; <a href="https://maps.nlsc.gov.tw/" target="_blank" rel="noopener">內政部國土測繪中心</a>',
     }).addTo(map);
-    L.marker([GATE.lat, GATE.lng], { icon: L.divIcon({ className: "", html: '<div class="pin gate"></div>', iconSize: [18, 18] }), title: "政大正門" })
-      .addTo(map).bindTooltip("政大正門");
+    const osm = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
+    });
+    L.control.layers({ "臺灣通用電子地圖": nlsc, "OpenStreetMap": osm }, null, { position: "topright" }).addTo(map);
+    L.marker([GATE.lat, GATE.lng], {
+      icon: L.divIcon({ className: "", html: '<span class="gate-pin">政大正門</span>', iconSize: null }),
+      interactive: false, keyboard: false,
+    }).addTo(map);
     for (const s of SHOPS) {
-      markers[s.id] = L.marker([s.lat, s.lng], { title: s.name }).addTo(map);
+      markers[s.id] = L.marker([s.lat, s.lng], { title: s.name, riseOnHover: true }).addTo(map);
+      markers[s.id].on("click", () => selectShop(s.id, { fly: false }));
     }
     refreshMarkers();
+    // 一開始把政大正門附近 600 公尺內的店家都框進畫面（手機、電腦都適用）
+    const near = SHOPS.filter((x) => distOf(x.id) < 600).map((x) => [x.lat, x.lng]);
+    map.fitBounds(L.latLngBounds([[GATE.lat, GATE.lng], ...near]), { padding: [36, 24], maxZoom: 18 });
+    // 拉遠時，洽談中的店縮成小圓點，避免標籤疊在一起
+    const zoomClass = () => map.getContainer().classList.toggle("zoom-lo", map.getZoom() < 18);
+    map.on("zoomend", zoomClass); zoomClass();
   }
+  function shortName(s) { return s.name.replace(/ 政大店| 給力盒子/g, "").replace("傳統甜點麵包店", ""); }
   function refreshMarkers() {
     if (!map) return;
     for (const s of SHOPS) {
-      const live = items.filter((x) => x.shop === s.id && x.qty > 0);
-      markers[s.id].setIcon(L.divIcon({ className: "", html: `<div class="pin ${live.length ? "live" : ""}"></div>`, iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -28] }));
-      markers[s.id].bindPopup(`<h4>${esc(s.name)}</h4>
-        <div>${esc(s.type)}，${esc(s.addr)}</div>
-        <div>平日 ${esc(s.hours)}</div>
-        <div>${live.length ? `今晚有 ${live.length} 項惜食` : esc(s.status)}</div>
-        <a href="${walkLink([s.id])}" target="_blank" rel="noopener">用 Google 地圖走過去</a>`);
+      const live = liveOf(s.id);
+      const on = filt.shop === s.id ? " is-on" : "";
+      const html = live.length
+        ? `<span class="shop-pin live${on}"><b>${esc(shortName(s))}</b><span>${live.reduce((t, x) => t + x.qty, 0)} 份・$${Math.min(...live.map((x) => x.deal))} 起</span></span>`
+        : `<span class="shop-pin${on}"><b>${esc(shortName(s))}</b><span>洽談中</span></span>`;
+      markers[s.id].setIcon(L.divIcon({ className: "", html, iconSize: null, iconAnchor: [0, 0] }));
+      markers[s.id].setZIndexOffset(live.length ? 1000 : 0);
     }
   }
-  function focusShop(id) {
+  function selectShop(id, { fly = true } = {}) {
     showView("map");
-    const s = shopById[id];
-    map.flyTo([s.lat, s.lng], 18, { duration: 0.6 });
-    markers[id].openPopup();
+    filt.shop = id;
+    if (fly) map.flyTo([shopById[id].lat, shopById[id].lng], 18, { duration: 0.5 });
+    renderListings();
+    const panel = $(".panel");
+    if (getComputedStyle(panel).overflowY === "auto") panel.scrollTo({ top: $("#shopFilter").offsetTop - 12, behavior: "smooth" });
+    else $("#shopFilter").scrollIntoView({ behavior: "smooth", block: "start" });
   }
+  const focusShop = (id) => selectShop(id);
 
-  // ---------- 剩食清單 ----------
-  const filt = { cat: "全部", max: 160, micro: false, sort: "price" };
+  // ---------- 剩食清單（依店家分組） ----------
+  const filt = { cat: "全部", micro: false, sort: "price", shop: null };
+  function shopHead(s, list) {
+    const m = distOf(s.id);
+    const until = list.map((x) => x.until).sort()[0];
+    return `<header class="shop-head">
+      <div>
+        <h3>${esc(s.name)}</h3>
+        <p>${esc(s.type)}，步行約 ${walkMin(m)} 分鐘（${distLabel(m)}）</p>
+      </div>
+      <div class="shop-when">
+        ${until ? `<span class="until">${esc(until)} 前取餐</span>` : ""}
+        <a href="${walkLink([s.id])}" target="_blank" rel="noopener">路線</a>
+      </div>
+    </header>`;
+  }
+  function renderSummary() {
+    const live = items.filter((x) => x.qty > 0);
+    const shops = new Set(live.map((x) => x.shop));
+    const best = live.reduce((m, x) => Math.max(m, saveOf(x)), 0);
+    $("#tonight").innerHTML = live.length
+      ? `今晚 <b>${shops.size}</b> 家店出清 <b>${live.reduce((t, x) => t + x.qty, 0)}</b> 份，最低 <b>$${Math.min(...live.map((x) => x.deal))}</b>，最多省 <b>$${best}</b>`
+      : "今晚的惜食都被訂完了，明天傍晚再來看看。";
+  }
   function renderListings() {
-    let list = items.filter((x) => (filt.cat === "全部" || x.cat === filt.cat) && x.deal <= filt.max && (!filt.micro || x.micro));
+    renderSummary();
+    let list = items.filter((x) => (filt.cat === "全部" || x.cat === filt.cat) && (!filt.micro || x.micro) && (!filt.shop || x.shop === filt.shop));
     const by = {
       price: (a, b) => a.deal - b.deal,
-      dist: (a, b) => distOf(a.shop) - distOf(b.shop) || a.deal - b.deal,
+      save: (a, b) => saveOf(b) - saveOf(a),
       protein: (a, b) => (b.protein ?? -1) - (a.protein ?? -1),
     }[filt.sort];
     list.sort((a, b) => (b.qty > 0) - (a.qty > 0) || by(a, b));
-    $("#listCount").textContent = list.length ? `共 ${list.length} 項，${list.filter((x) => x.qty > 0).length} 項還能訂` : "";
-    $("#listings").innerHTML = list.length ? list.map((x) => itemCard(x)).join("")
-      : `<li class="empty">沒有符合條件的品項。把惜食價上限調高，或換個類別看看。</li>`;
+    const shopIds = [...new Set(list.map((x) => x.shop))].sort((a, b) => distOf(a) - distOf(b));
+    const sel = filt.shop ? shopById[filt.shop] : null;
+    $("#shopFilter").innerHTML = sel ? `只看 <b>${esc(sel.name)}</b> <button class="linklike" id="clearShop">看全部店家</button>` : "";
+    $("#shopFilter").hidden = !sel;
+    if (sel && !liveOf(sel.id).length && !list.length) {
+      $("#listings").innerHTML = `<li class="empty"><b>${esc(sel.name)}</b> 還在洽談合作，目前沒有上架惜食。平日 ${esc(sel.hours)}。</li>`;
+    } else {
+      $("#listings").innerHTML = shopIds.length ? shopIds.map((id) => {
+        const rows = list.filter((x) => x.shop === id);
+        return `<li class="shop-group">${shopHead(shopById[id], rows.filter((x) => x.qty > 0))}<ul class="rows">${rows.map((x) => itemRow(x)).join("")}</ul></li>`;
+      }).join("") : `<li class="empty">沒有符合的品項。換個類別，或取消「只看可微波」。</li>`;
+    }
+    $("#clearShop")?.addEventListener("click", () => { filt.shop = null; renderListings(); });
     const pending = SHOPS.filter((s) => !items.some((x) => x.shop === s.id));
-    $("#pendingShops").innerHTML = pending.map((s) => `<li><button class="linklike" data-focus-shop="${s.id}">${esc(s.name)}</button><span class="meta">${esc(s.type)}，${esc(s.close)} 打烊</span></li>`).join("");
+    $("#pendingShops").innerHTML = pending.map((s) => `<li><button class="linklike" data-focus-shop="${s.id}">${esc(s.name)}</button><span class="meta">${esc(s.type)}，步行 ${walkMin(distOf(s.id))} 分鐘</span></li>`).join("");
+    refreshMarkers();
   }
   $$("#view-map .chip").forEach((c) => c.addEventListener("click", () => {
-    $$("#view-map .chip").forEach((x) => x.classList.toggle("is-on", x === c));
+    $$("#view-map .chip").forEach((x) => { x.classList.toggle("is-on", x === c); x.setAttribute("aria-pressed", x === c); });
     filt.cat = c.dataset.cat; renderListings();
   }));
-  $("#maxPrice").addEventListener("input", (e) => { filt.max = +e.target.value; $("#maxPriceOut").textContent = `$${filt.max}`; renderListings(); });
   $("#onlyMicro").addEventListener("change", (e) => { filt.micro = e.target.checked; renderListings(); });
   $("#sortBy").addEventListener("change", (e) => { filt.sort = e.target.value; renderListings(); });
 
@@ -252,7 +316,7 @@
       </li>`;
     }).join("") : `<li class="empty">$${budget} 內組不出主食＋蛋白質＋蔬菜。試著把預算提高到 $70 以上，或看看下方的完整餐盒。</li>`;
     const boxes = items.filter((x) => x.cat === "完整餐盒" && x.qty > 0 && x.deal <= budget).sort((a, b) => a.deal - b.deal);
-    $("#boxes").innerHTML = boxes.length ? boxes.map((x) => itemCard(x)).join("") : `<li class="empty">預算內沒有完整餐盒。</li>`;
+    $("#boxes").innerHTML = boxes.length ? boxes.map((x) => itemRow(x, { showShop: true })).join("") : `<li class="empty">預算內沒有完整餐盒。</li>`;
   }
   $("#budget").addEventListener("input", renderCombos);
   $("#noFried").addEventListener("change", renderCombos);
@@ -323,7 +387,7 @@
       return { x, s: cover - over, cover };
     }).sort((a, b) => b.s - a.s).slice(0, 3);
     $("#nextHint").textContent = `你今天還剩約 ${fmt(leftKcal)} 大卡、蛋白質還差 ${fmt(gapP, 1)} g。下一餐以 ${fmt(mealKcal)} 大卡為額度，優先補蛋白質。`;
-    $("#nextMeal").innerHTML = scored.map(({ x, cover }) => itemCard(x, { compact: true }).replace("</h4>", `</h4><p class="meta">可補蛋白質缺口的 ${fmt(cover * 100)}%</p>`)).join("");
+    $("#nextMeal").innerHTML = scored.map(({ x, cover }) => itemRow(x, { showShop: true, note: `可補今天蛋白質缺口的 ${fmt(cover * 100)}%` })).join("");
   }
   $("#profile").addEventListener("input", renderNutrition);
   $("#eaten").addEventListener("click", (e) => {
@@ -403,7 +467,7 @@
   }
 
   // ---------- 啟動 ----------
-  function renderAll() { renderListings(); refreshMarkers(); renderCombos(); }
+  function renderAll() { renderListings(); renderCombos(); if ($("#view-nutri").classList.contains("is-active")) renderNutrition(); }
   async function loadRemote() {
     if (!CFG.APPS_SCRIPT_URL) return;
     try {

@@ -29,7 +29,7 @@
     </nav>
   </header>
 
-  <p class="demo-note" role="note">示範版本：品項與原價取自楽坡、GET POWER 已公開的菜單，惜食價、剩餘份數與取餐時間為示範值。正式上線後由店家每日上架。</p>
+  <p class="demo-note" role="note">示範版本：品項與原價取自楽坡、GET POWER 公開的菜單；惜食價、剩餘份數、取餐時間是示範值。</p>
 
   <main>
     <!-- 剩食地圖 -->
@@ -38,31 +38,34 @@
       <div class="map-layout">
         <div id="map" class="map" role="region" aria-label="政大周邊店家地圖"></div>
         <div class="panel">
+          <p class="tonight" id="tonight" aria-live="polite"></p>
+          <details class="explain">
+            <summary>什麼是惜食價？</summary>
+            <p>店家打烊前，把當天沒賣完、但仍新鮮可以吃的餐點打折出清，這個價格就是<b>惜食價</b>。你用比較便宜的價格吃到一般餐點，店家少丟一份食物、多一筆收入。</p>
+            <p>預訂後會拿到 4 位數取餐碼，在標示的時間前到店出示、付款取餐。這個示範版本以原價 7 折計算，正式上線後由店家自己定價。</p>
+          </details>
           <div class="filters">
             <div class="chips" role="group" aria-label="食物類別">
-              <button class="chip is-on" data-cat="全部">全部</button>
-              <button class="chip" data-cat="完整餐盒">完整餐盒</button>
-              <button class="chip" data-cat="主食">主食</button>
-              <button class="chip" data-cat="蛋白質">蛋白質</button>
-              <button class="chip" data-cat="蔬菜">蔬菜</button>
-            </div>
-            <div class="filter-row">
-              <label for="maxPrice">惜食價上限 <output id="maxPriceOut">$160</output></label>
-              <input id="maxPrice" type="range" min="10" max="160" step="5" value="160">
+              <button class="chip is-on" data-cat="全部" aria-pressed="true">全部</button>
+              <button class="chip" data-cat="完整餐盒" aria-pressed="false">完整餐盒</button>
+              <button class="chip" data-cat="主食" aria-pressed="false">主食</button>
+              <button class="chip" data-cat="蛋白質" aria-pressed="false">蛋白質</button>
+              <button class="chip" data-cat="蔬菜" aria-pressed="false">蔬菜</button>
             </div>
             <div class="filter-row">
               <label class="check"><input type="checkbox" id="onlyMicro"> 只看可微波加熱</label>
               <label for="sortBy" class="sr-only">排序</label>
               <select id="sortBy">
-                <option value="price">惜食價低到高</option>
-                <option value="dist">離正門近到遠</option>
+                <option value="price">價格低到高</option>
+                <option value="save">省最多</option>
                 <option value="protein">蛋白質多到少</option>
               </select>
             </div>
           </div>
-          <p class="count" id="listCount" aria-live="polite"></p>
-          <ul class="listings" id="listings"></ul>
+          <p class="shop-filter" id="shopFilter" hidden></p>
+          <ul class="groups" id="listings"></ul>
           <h3 class="subhead">洽談中的店家</h3>
+          <p class="hint">這些店還沒上架惜食。點店名可以在地圖上看位置。</p>
           <ul class="pending-shops" id="pendingShops"></ul>
         </div>
       </div>
@@ -81,7 +84,7 @@
         <h3 class="subhead">跨店組餐</h3>
         <ol class="combos" id="combos"></ol>
         <h3 class="subhead">預算內的完整餐盒</h3>
-        <ul class="listings compact" id="boxes"></ul>
+        <ul class="rows" id="boxes"></ul>
       </div>
     </section>
 
@@ -124,7 +127,7 @@
         <div class="bars" id="bars"></div>
         <h3 class="subhead">下一餐推薦</h3>
         <p class="hint" id="nextHint"></p>
-        <ul class="listings compact" id="nextMeal"></ul>
+        <ul class="rows" id="nextMeal"></ul>
       </div>
     </section>
 
@@ -157,7 +160,8 @@
           <li><a href="https://web.ntnu.edu.tw/~499002011/evaluation.html" target="_blank" rel="noopener">台師大 成人每日均衡飲食建議量</a>：六大類份數</li>
           <li><a href="https://bonbox.tw/menu/" target="_blank" rel="noopener">楽坡 BonBox 官網菜單</a>（2026/07/13 更新）</li>
           <li><a href="https://www.foodpanda.com.tw/restaurant/b933/get-power-gei-li-he-zi-zheng-da-dian-b933" target="_blank" rel="noopener">GET POWER 給力盒子 政大店 foodpanda 菜單</a>（2026/11/01 查詢）</li>
-          <li>店家座標與營業時間：Google 地圖（2026/11/01 查詢）；底圖 © OpenStreetMap contributors</li>
+          <li>店家座標與營業時間：Google 地圖（2026/11/01 查詢）</li>
+          <li>地圖底圖：<a href="https://maps.nlsc.gov.tw/" target="_blank" rel="noopener">內政部國土測繪中心 臺灣通用電子地圖</a>（可切換 © OpenStreetMap contributors）</li>
         </ul>
       </div>
     </section>
