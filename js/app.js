@@ -58,9 +58,37 @@
   }
 
   // ---------- 分頁 ----------
+  const PAGES = {
+    map: ["剩食地圖", "查看政大周邊店家今晚出清的惜食品項，預訂後憑取餐碼到店付款取餐。"],
+    combo: ["組一餐", "依國健署「我的餐盤」概念，從主食、蛋白質、蔬菜各挑一樣，在預算內排出最省、最順路的組合。"],
+    nutri: ["我的營養", "依國健署 DRIs 第八版計算每日建議攝取量，記錄今天吃的食物，查看還差多少營養。數值為估算，僅供參考。"],
+    recipe: ["剩食料理", "依手邊的設備與食材，找 15 分鐘內做得完的料理。營養以食藥署資料計算。"],
+    data: ["資料來源", "本站不使用自創的健康分數。熱量、營養素與建議攝取量均查自官方公開資料，以下為資料處理結果。"],
+  };
+  function setPageHead(name) {
+    const [title, desc] = PAGES[name];
+    $("#pageTitle").textContent = title;
+    $("#crumbNow").textContent = title;
+    $("#pageDesc").textContent = desc;
+    document.title = `${title}｜RescuEat 政大惜食地圖`;
+  }
+  // 字級大小（政府網站常見的小／中／大）
+  const FS = { s: "15px", m: "16px", l: "18px" };
+  function setFont(k) {
+    document.documentElement.style.fontSize = FS[k];
+    $$("[data-fs]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.fs === k));
+    store.set("re_fs", k);
+    if (map) setTimeout(() => map.invalidateSize(), 0);
+  }
+  $$("[data-fs]").forEach((b) => b.addEventListener("click", () => setFont(b.dataset.fs)));
+  $$("[data-view-link]").forEach((b) => b.addEventListener("click", () => showView(b.dataset.viewLink)));
+
   function showView(name) {
+    setPageHead(name);
     $$(".tab").forEach((t) => { const on = t.dataset.view === name; t.classList.toggle("is-active", on); on ? t.setAttribute("aria-current", "page") : t.removeAttribute("aria-current"); });
     window.scrollTo({ top: 0 });
+    const want = name === "map" ? "" : `#${name}`;
+    if (location.hash !== want) history.replaceState(null, "", want || location.pathname);
     $$(".view").forEach((v) => v.classList.toggle("is-active", v.id === `view-${name}`));
     if (name === "map" && map) setTimeout(() => map.invalidateSize(), 0);
     if (name === "combo") renderCombos();
@@ -189,11 +217,16 @@
   }
   function renderSummary() {
     const live = items.filter((x) => x.qty > 0);
+    const el = $("#tonight");
+    if (!live.length) { el.className = "tonight is-empty"; el.textContent = "今晚的惜食都被訂完了，明天傍晚再來看看。"; return; }
+    el.className = "tonight";
     const shops = new Set(live.map((x) => x.shop));
-    const best = live.reduce((m, x) => Math.max(m, saveOf(x)), 0);
-    $("#tonight").innerHTML = live.length
-      ? `今晚 <b>${shops.size}</b> 家店出清 <b>${live.reduce((t, x) => t + x.qty, 0)}</b> 份，最低 <b>$${Math.min(...live.map((x) => x.deal))}</b>，最多省 <b>$${best}</b>`
-      : "今晚的惜食都被訂完了，明天傍晚再來看看。";
+    el.innerHTML = [
+      ["今晚出清店家", `${shops.size} 家`],
+      ["可預訂份數", `${live.reduce((t, x) => t + x.qty, 0)} 份`],
+      ["最低惜食價", `$${Math.min(...live.map((x) => x.deal))}`],
+      ["單份最多省", `$${live.reduce((m, x) => Math.max(m, saveOf(x)), 0)}`],
+    ].map(([k, v]) => `<span>${k}<b>${v}</b></span>`).join("");
   }
   function renderListings() {
     renderSummary();
@@ -503,9 +536,13 @@
   (async function start() {
     await loadRemote();
     applyLocalReservations();
+    setFont(store.get("re_fs", "m"));
     initMap();
     renderAll();
     renderRecipes();
     renderData();
+    const route = () => { const h = location.hash.slice(1); showView(PAGES[h] ? h : "map"); };
+    window.addEventListener("hashchange", route);
+    route();
   })();
 })();

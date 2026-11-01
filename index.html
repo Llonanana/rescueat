@@ -8,19 +8,44 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="icon" href="img/logo.svg" type="image/svg+xml">
-  <meta name="theme-color" content="#FFF4D6">
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#1F4E37">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="./" aria-label="RescuEat 首頁">
-      <img src="img/logo.svg" alt="" width="48" height="48">
-      <span class="wordmark"><span class="w-g">Rescu</span><span class="w-o">Eat</span></span>
-    </a>
-    <p class="slogan">Rescue Food, Rescue Your Wallet!<span>政大周邊惜食地圖</span></p>
-    <nav class="tabs" aria-label="主要功能">
+  <a class="skip" href="#C">跳到主要內容</a>
+  <div class="utility">
+    <div class="wrap">
+      <a class="acc" accesskey="U" href="#U" id="U" title="上方功能區塊">:::</a>
+      <span class="u-org">國立政治大學 AI 實務專案｜乞丐超人的勝利</span>
+      <ul class="u-links">
+        <li><a href="#sitemap">網站導覽</a></li>
+        <li><button type="button" data-view-link="data">資料來源</button></li>
+        <li class="fontsize" role="group" aria-label="字級大小">
+          <span aria-hidden="true">字級</span>
+          <button type="button" data-fs="s" aria-label="小字級">小</button>
+          <button type="button" data-fs="m" aria-label="中字級" aria-pressed="true">中</button>
+          <button type="button" data-fs="l" aria-label="大字級">大</button>
+        </li>
+      </ul>
+    </div>
+  </div>
+  <header class="masthead">
+    <div class="wrap">
+      <a class="brand" href="./" aria-label="RescuEat 政大惜食地圖 回首頁">
+        <img src="img/logo.svg" alt="" width="56" height="56">
+        <span class="brand-text">
+          <span class="wordmark"><span class="w-g">Rescu</span><span class="w-o">Eat</span></span>
+          <span class="brand-zh">政大周邊惜食地圖</span>
+        </span>
+      </a>
+      <p class="slogan">Rescue Food, Rescue Your Wallet!</p>
+    </div>
+  </header>
+  <div class="navband">
+    <div class="wrap">
+    <nav class="tabs" aria-label="主選單">
       <button class="tab is-active" data-view="map" aria-current="page">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span>剩食地圖</span>
       </button>
@@ -37,18 +62,26 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg><span>資料來源</span>
       </button>
     </nav>
-  </header>
+    </div>
+  </div>
+  <div class="pagehead">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="目前位置"><a href="./">首頁</a><span aria-hidden="true">›</span><span id="crumbNow">剩食地圖</span></nav>
+      <h2 id="pageTitle">剩食地圖</h2>
+      <p id="pageDesc"></p>
+    </div>
+  </div>
+  <p class="demo-note" role="note"><span class="wrap">示範版本：品項與原價取自楽坡、GET POWER 公開的菜單；惜食價、剩餘份數、取餐時間為示範值。</span></p>
 
-  <p class="demo-note" role="note">示範版本：品項與原價取自楽坡、GET POWER 公開的菜單；惜食價、剩餘份數、取餐時間是示範值。</p>
-
-  <main>
+  <main id="main">
+    <a class="acc" accesskey="C" href="#C" id="C" title="中央內容區塊">:::</a>
     <!-- 剩食地圖 -->
-    <section class="view is-active" id="view-map" aria-labelledby="h-map">
-      <h2 id="h-map" class="sr-only">剩食地圖</h2>
+    <section class="view is-active" id="view-map">
+      
       <div class="map-layout">
         <div id="map" class="map" role="region" aria-label="政大周邊店家地圖"></div>
         <div class="panel">
-          <p class="tonight" id="tonight" aria-live="polite"></p>
+          <div class="tonight" id="tonight" aria-live="polite"></div>
           <details class="explain">
             <summary>什麼是惜食價？</summary>
             <p>店家打烊前，把當天沒賣完、但仍新鮮可以吃的餐點打折出清，這個價格就是<b>惜食價</b>。你用比較便宜的價格吃到一般餐點，店家少丟一份食物、多一筆收入。</p>
@@ -82,10 +115,8 @@
     </section>
 
     <!-- 組一餐 -->
-    <section class="view" id="view-combo" aria-labelledby="h-combo">
+    <section class="view" id="view-combo">
       <div class="narrow">
-        <h2 id="h-combo">用剩食組一份均衡的餐</h2>
-        <p class="lede">依國健署「我的餐盤」概念，從主食、蛋白質、蔬菜各挑一樣，在預算內排出最省、最順路的組合。</p>
         <div class="budget">
           <label for="budget">這餐預算</label>
           <div class="budget-input"><span>$</span><input id="budget" type="number" min="20" max="500" step="5" value="100" inputmode="numeric"></div>
@@ -99,10 +130,9 @@
     </section>
 
     <!-- 我的營養 -->
-    <section class="view" id="view-nutri" aria-labelledby="h-nutri">
+    <section class="view" id="view-nutri">
       <div class="narrow">
-        <h2 id="h-nutri">今天還差多少營養</h2>
-        <p class="lede">用國健署 DRIs 第八版算出你的每日建議量，再記下今天吃了什麼，看看還缺什麼。數值為估算，僅供參考，不是醫療建議。</p>
+        <h3 class="subhead">你的基本資料</h3>
         <form class="profile" id="profile">
           <label>性別
             <select name="sex"><option>女</option><option>男</option></select>
@@ -142,10 +172,8 @@
     </section>
 
     <!-- 剩食料理 -->
-    <section class="view" id="view-recipe" aria-labelledby="h-recipe">
+    <section class="view" id="view-recipe">
       <div class="narrow">
-        <h2 id="h-recipe">買回來的剩食怎麼煮</h2>
-        <p class="lede">選你手邊的設備和食材，找 15 分鐘內做得完的料理。營養以食藥署資料計算。</p>
         <div class="chips" role="group" aria-label="設備" id="equipChips"></div>
         <div class="chips" role="group" aria-label="手邊食材" id="ingChips"></div>
         <ul class="recipes" id="recipes"></ul>
@@ -154,10 +182,8 @@
     </section>
 
     <!-- 資料來源 -->
-    <section class="view" id="view-data" aria-labelledby="h-data">
+    <section class="view" id="view-data">
       <div class="narrow">
-        <h2 id="h-data">這些數字從哪裡來</h2>
-        <p class="lede">RescuEat 不用自創的「健康分數」。熱量、營養、建議攝取量都查自官方資料，這裡是資料處理的結果。</p>
         <div class="stat-grid" id="statGrid"></div>
         <h3 class="subhead">清理後的食材分類</h3>
         <div class="hbars" id="groupBars"></div>
@@ -176,6 +202,45 @@
       </div>
     </section>
   </main>
+
+  <footer class="site-footer" id="sitemap">
+    <a class="acc" accesskey="Z" href="#Z" id="Z" title="下方資訊區塊">:::</a>
+    <div class="wrap foot-grid">
+      <section>
+        <h3>網站導覽</h3>
+        <ul>
+          <li><button type="button" data-view-link="map">剩食地圖</button></li>
+          <li><button type="button" data-view-link="combo">組一餐</button></li>
+          <li><button type="button" data-view-link="nutri">我的營養</button></li>
+          <li><button type="button" data-view-link="recipe">剩食料理</button></li>
+          <li><button type="button" data-view-link="data">資料來源</button></li>
+        </ul>
+      </section>
+      <section>
+        <h3>資料來源</h3>
+        <ul>
+          <li><a href="https://data.gov.tw/dataset/8543" target="_blank" rel="noopener">衛生福利部食品藥物管理署 食品營養成分資料集</a></li>
+          <li>衛生福利部國民健康署 國人膳食營養素參考攝取量（第八版）</li>
+          <li><a href="https://maps.nlsc.gov.tw/" target="_blank" rel="noopener">內政部國土測繪中心 臺灣通用電子地圖</a></li>
+          <li><a href="https://web.ntnu.edu.tw/~499002011/evaluation.html" target="_blank" rel="noopener">國立臺灣師範大學 成人每日均衡飲食建議量</a></li>
+        </ul>
+      </section>
+      <section>
+        <h3>使用說明</h3>
+        <ul class="plain">
+          <li><b>隱私：</b>你輸入的身高、體重、飲食紀錄與預訂只存在你自己的瀏覽器，不會上傳。</li>
+          <li><b>營養資訊：</b>標示「估算值」者依食藥署資料與份量推算，僅供參考，不是醫療或營養諮詢。</li>
+          <li><b>惜食品項：</b>由合作店家提供，取餐前請確認保存方式與取餐時間。</li>
+        </ul>
+      </section>
+    </div>
+    <div class="foot-bottom">
+      <div class="wrap">
+        <p>本網站為國立政治大學學生專案作品「RescuEat 政大惜食地圖」，<b>非政府機關網站</b>。</p>
+        <p>資料更新日期：2026 年 11 月 1 日｜建議使用 Chrome、Edge、Safari 最新版瀏覽</p>
+      </div>
+    </div>
+  </footer>
 
   <dialog id="reserveDialog" aria-labelledby="dlgTitle">
     <form method="dialog" class="dlg">
