@@ -1,0 +1,254 @@
+/* RescuEat — 打烊前的出清貼紙：夜色藍框 + 黃色惜食貼紙，其餘保持安靜 */
+:root {
+  --night: #1F2D4D;        /* 晚間的指南路 */
+  --night-2: #2B3D66;
+  --paper: #F3F5F4;        /* 頁面底色 */
+  --card: #FFFFFF;
+  --text: #1C2333;
+  --muted: #5B6475;
+  --line: #DCE1E6;
+  --sticker: #FFD23F;      /* 出清貼紙黃 */
+  --sticker-ink: #B3001B;  /* 貼紙上的紅字 */
+  --g-staple: #B97E00;     /* 主食 */
+  --g-protein: #C23B47;    /* 蛋白質 */
+  --g-veg: #23804D;        /* 蔬菜 */
+  --g-box: #3E5C9A;        /* 完整餐盒 */
+  --focus: #2F6FEB;
+  --r-s: 6px;
+  --r-m: 12px;
+  --font-display: "Huninn", "Noto Sans TC", sans-serif;
+  --font-body: "Noto Sans TC", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--text);
+  font: 16px/1.6 var(--font-body);
+}
+h1, h2, h3 { font-family: var(--font-display); font-weight: 400; line-height: 1.25; }
+a { color: var(--night-2); }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- 頂部 ---------- */
+.topbar {
+  background: var(--night);
+  color: #fff;
+  padding: 14px 24px 0;
+  position: sticky; top: 0; z-index: 1000;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.logo {
+  display: grid; place-items: center;
+  width: 44px; height: 44px;
+  background: var(--sticker); color: var(--sticker-ink);
+  font: 26px/1 var(--font-display);
+  border-radius: 4px; transform: rotate(-6deg);
+}
+.brand h1 { margin: 0; font-size: 1.5rem; letter-spacing: .02em; }
+.slogan { margin: 0; font-size: .85rem; color: #C9D3E8; }
+.tabs { display: flex; gap: 4px; margin-top: 12px; overflow-x: auto; }
+.tab {
+  background: none; border: 0; color: #C9D3E8;
+  font: 500 .95rem var(--font-body);
+  padding: 10px 14px; border-radius: var(--r-s) var(--r-s) 0 0;
+  cursor: pointer; white-space: nowrap;
+}
+.tab:hover { color: #fff; }
+.tab.is-active { background: var(--paper); color: var(--night); }
+
+.demo-note {
+  margin: 0; padding: 8px 24px;
+  background: #FFF6D1; color: #5A4500;
+  font-size: .85rem; border-bottom: 1px solid #F0DF9C;
+}
+
+main { padding: 0; }
+.view { display: none; }
+.view.is-active { display: block; }
+.narrow { max-width: 760px; margin: 0 auto; padding: 24px; }
+.narrow h2 { font-size: 1.75rem; margin: 8px 0 4px; }
+.lede { color: var(--muted); margin: 0 0 20px; max-width: 62ch; }
+.subhead { font-size: 1.15rem; margin: 28px 0 10px; }
+.hint { color: var(--muted); font-size: .88rem; }
+
+/* ---------- 地圖頁 ---------- */
+.map-layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(340px, 1fr); height: calc(100vh - 150px); min-height: 520px; }
+.map { height: 100%; }
+.panel { overflow-y: auto; padding: 16px 20px 40px; border-left: 1px solid var(--line); }
+.filters { display: grid; gap: 10px; margin-bottom: 8px; }
+.filter-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: .92rem; }
+.filter-row input[type=range] { flex: 1; max-width: 220px; accent-color: var(--night); }
+select, input[type=number], input[type=search] {
+  font: inherit; color: inherit;
+  border: 1px solid var(--line); border-radius: var(--r-s);
+  padding: 7px 10px; background: var(--card);
+}
+.check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.count { color: var(--muted); font-size: .88rem; margin: 6px 0; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font: 500 .88rem var(--font-body);
+  border: 1px solid var(--line); background: var(--card); color: var(--text);
+  padding: 5px 12px; border-radius: 999px; cursor: pointer;
+}
+.chip.is-on { background: var(--night); border-color: var(--night); color: #fff; }
+
+/* 品項卡 */
+.listings { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.item {
+  display: grid; grid-template-columns: 1fr auto; gap: 4px 14px;
+  background: var(--card); border: 1px solid var(--line);
+  border-left: 5px solid var(--gc, var(--line));
+  border-radius: var(--r-s); padding: 12px 14px;
+}
+.item[data-cat="主食"] { --gc: var(--g-staple); }
+.item[data-cat="蛋白質"] { --gc: var(--g-protein); }
+.item[data-cat="蔬菜"] { --gc: var(--g-veg); }
+.item[data-cat="完整餐盒"] { --gc: var(--g-box); }
+.item h4 { margin: 0; font: 700 1rem var(--font-body); }
+.item .meta { margin: 0; color: var(--muted); font-size: .85rem; }
+.item .nutri { margin: 2px 0 0; font-size: .85rem; }
+.item .nutri small { color: var(--muted); }
+.item .actions { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+.cat-label { font-size: .78rem; font-weight: 700; color: var(--gc); }
+
+/* 惜食貼紙：本頁唯一的大膽元素 */
+.sticker {
+  align-self: start;
+  background: var(--sticker); color: var(--sticker-ink);
+  font-family: var(--font-display);
+  padding: 6px 10px 4px; border-radius: 3px;
+  transform: rotate(-4deg);
+  text-align: center; line-height: 1.05;
+  box-shadow: 0 1px 0 #D9AE1C;
+}
+.sticker .lbl { display: block; font-size: .7rem; }
+.sticker .deal { display: block; font-size: 1.45rem; }
+.sticker s { display: block; font: .72rem var(--font-body); color: #6B5200; }
+
+.btn {
+  font: 700 .9rem var(--font-body);
+  border-radius: var(--r-s); padding: 8px 14px; cursor: pointer;
+  border: 1px solid var(--night); background: var(--night); color: #fff;
+}
+.btn.ghost { background: transparent; color: var(--night); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.code-tag { font: 1.1rem var(--font-display); color: var(--g-veg); }
+
+.pending-shops { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; font-size: .9rem; }
+.pending-shops li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--line); }
+.pending-shops .meta { color: var(--muted); }
+
+/* Leaflet 標記 */
+.pin {
+  width: 30px; height: 30px; border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: var(--night); border: 3px solid #fff;
+  box-shadow: 0 1px 3px rgba(31, 45, 77, .4);
+}
+.pin.live { background: var(--sticker); border-color: var(--night); }
+.pin.gate { background: var(--g-veg); border-radius: 50%; transform: none; width: 18px; height: 18px; }
+.leaflet-popup-content { font: 14px/1.5 var(--font-body); }
+.leaflet-popup-content h4 { margin: 0 0 4px; font: 700 15px var(--font-body); }
+
+/* ---------- 組一餐 ---------- */
+.budget { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-m); padding: 16px; }
+.budget > label:first-child { font-family: var(--font-display); font-size: 1.15rem; }
+.budget-input { display: flex; align-items: center; gap: 4px; font: 1.6rem var(--font-display); }
+.budget-input input { width: 110px; font: 1.6rem var(--font-display); padding: 2px 8px; }
+.combos { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; counter-reset: combo; }
+.combo { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-m); padding: 16px; counter-increment: combo; }
+.combo-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.combo-head h4 { margin: 0; font: 1.1rem var(--font-display); }
+.combo-head h4::before { content: "組合 " counter(combo) "："; }
+.combo-total { font: 1.4rem var(--font-display); color: var(--sticker-ink); }
+.plate { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
+.plate div { border-radius: var(--r-s); padding: 8px 10px; font-size: .88rem; background: #F7F8FA; border-top: 4px solid var(--gc); }
+.plate b { display: block; color: var(--gc); font-size: .78rem; }
+.plate .s { --gc: var(--g-staple); }
+.plate .p { --gc: var(--g-protein); }
+.plate .v { --gc: var(--g-veg); }
+.badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: .82rem; }
+.badges li { background: #E9F4EE; color: var(--g-veg); padding: 2px 8px; border-radius: 999px; }
+.combo .meta { color: var(--muted); font-size: .85rem; margin: 8px 0 0; }
+.empty { background: var(--card); border: 1px dashed var(--line); border-radius: var(--r-m); padding: 16px; color: var(--muted); }
+
+/* ---------- 我的營養 ---------- */
+.profile { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+.profile label { display: grid; gap: 4px; font-size: .88rem; color: var(--muted); }
+.profile input, .profile select { width: 100%; color: var(--text); }
+.energy-note { font-size: .88rem; color: var(--muted); }
+.search { display: flex; gap: 8px; align-items: center; }
+.search input[type=search] { flex: 1; min-width: 0; }
+.search input[type=number] { width: 84px; }
+.results { list-style: none; padding: 0; margin: 6px 0 0; max-height: 260px; overflow-y: auto; border-radius: var(--r-s); }
+.results li button {
+  width: 100%; text-align: left; font: inherit; background: var(--card);
+  border: 0; border-bottom: 1px solid var(--line); padding: 8px 10px; cursor: pointer;
+  display: flex; justify-content: space-between; gap: 10px;
+}
+.results li button:hover { background: #EEF2F8; }
+.results small { color: var(--muted); }
+.eaten { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 6px; }
+.eaten li { display: flex; justify-content: space-between; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-s); padding: 6px 10px; font-size: .9rem; }
+.eaten button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: .85rem; }
+.bars { display: grid; gap: 12px; }
+.bar-row { display: grid; grid-template-columns: 110px 1fr 120px; gap: 10px; align-items: center; font-size: .9rem; }
+.bar { height: 12px; background: #E3E7EC; border-radius: 999px; overflow: hidden; }
+.bar span { display: block; height: 100%; background: var(--g-veg); border-radius: 999px; }
+.bar.over span { background: var(--sticker-ink); }
+.bar-row .v { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* ---------- 剩食料理 ---------- */
+#equipChips { margin-bottom: 10px; }
+.recipes { list-style: none; padding: 0; margin: 20px 0 0; display: grid; gap: 14px; }
+.recipe { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-m); padding: 16px; }
+.recipe h4 { margin: 0; font: 1.15rem var(--font-display); }
+.recipe .meta { color: var(--muted); font-size: .85rem; margin: 2px 0 8px; }
+.recipe ul { margin: 0 0 8px; padding-left: 1.2em; font-size: .92rem; }
+.recipe ol { margin: 0; padding-left: 1.3em; font-size: .92rem; }
+.recipe .have { color: var(--g-veg); font-weight: 700; }
+
+/* ---------- 資料來源 ---------- */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.stat { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-m); padding: 14px; }
+.stat b { display: block; font: 1.7rem var(--font-display); color: var(--night); }
+.stat span { font-size: .85rem; color: var(--muted); }
+.hbars { display: grid; gap: 8px; }
+.hbar { display: grid; grid-template-columns: 90px 1fr 48px; gap: 10px; align-items: center; font-size: .9rem; }
+.hbar .track { height: 14px; background: #E3E7EC; border-radius: 3px; }
+.hbar .fill { height: 100%; border-radius: 3px; background: var(--gc, var(--night-2)); }
+.hbar .n { text-align: right; font-variant-numeric: tabular-nums; }
+.rank { padding-left: 1.4em; font-size: .92rem; }
+.sources { font-size: .92rem; padding-left: 1.2em; }
+
+/* ---------- 預訂對話框 ---------- */
+dialog { border: 0; border-radius: var(--r-m); padding: 0; max-width: 420px; width: calc(100% - 32px); }
+dialog::backdrop { background: rgba(31, 45, 77, .55); }
+.dlg { padding: 20px; }
+.dlg h3 { margin: 0 0 10px; font-size: 1.3rem; }
+.dlg-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 0; margin: 16px 0 0; }
+.pickup-code { font: 2.6rem var(--font-display); letter-spacing: .15em; color: var(--night); text-align: center; margin: 8px 0; }
+
+/* ---------- 手機 ---------- */
+@media (max-width: 860px) {
+  .topbar { padding: 10px 16px 0; }
+  .demo-note { padding: 8px 16px; }
+  .map-layout { grid-template-columns: 1fr; height: auto; }
+  .map { height: 42vh; min-height: 260px; }
+  .panel { border-left: 0; padding: 16px; }
+  .narrow { padding: 18px 16px; }
+  .plate { grid-template-columns: 1fr; }
+  .bar-row { grid-template-columns: 84px 1fr 96px; font-size: .84rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* 文字樣式的按鈕（店名連到地圖） */
+.linklike { background: none; border: 0; padding: 0; font: inherit; color: var(--night-2); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }

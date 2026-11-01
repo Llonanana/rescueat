@@ -1,0 +1,8 @@
+# 食藥署原始資料檔約 66 MB，請自行從 data.gov.tw 下載
+analysis/data/raw/*
+!analysis/data/raw/.gitkeep
+__pycache__/
+*.pyc
+.DS_Store
+.vscode/
+node_modules/

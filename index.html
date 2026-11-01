@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RescuEat 政大惜食地圖</title>
+  <meta name="description" content="政大周邊打烊前剩食地圖：找剩食、跨店組一餐、看營養缺口、用宿舍設備做剩食料理。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Huninn&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">惜</span>
+      <div>
+        <h1>RescuEat</h1>
+        <p class="slogan">政大周邊惜食地圖・月底不吃土</p>
+      </div>
+    </div>
+    <nav class="tabs" aria-label="主要功能">
+      <button class="tab is-active" data-view="map">剩食地圖</button>
+      <button class="tab" data-view="combo">組一餐</button>
+      <button class="tab" data-view="nutri">我的營養</button>
+      <button class="tab" data-view="recipe">剩食料理</button>
+      <button class="tab" data-view="data">資料來源</button>
+    </nav>
+  </header>
+
+  <p class="demo-note" role="note">示範版本：品項與原價取自楽坡、GET POWER 已公開的菜單，惜食價、剩餘份數與取餐時間為示範值。正式上線後由店家每日上架。</p>
+
+  <main>
+    <!-- 剩食地圖 -->
+    <section class="view is-active" id="view-map" aria-labelledby="h-map">
+      <h2 id="h-map" class="sr-only">剩食地圖</h2>
+      <div class="map-layout">
+        <div id="map" class="map" role="region" aria-label="政大周邊店家地圖"></div>
+        <div class="panel">
+          <div class="filters">
+            <div class="chips" role="group" aria-label="食物類別">
+              <button class="chip is-on" data-cat="全部">全部</button>
+              <button class="chip" data-cat="完整餐盒">完整餐盒</button>
+              <button class="chip" data-cat="主食">主食</button>
+              <button class="chip" data-cat="蛋白質">蛋白質</button>
+              <button class="chip" data-cat="蔬菜">蔬菜</button>
+            </div>
+            <div class="filter-row">
+              <label for="maxPrice">惜食價上限 <output id="maxPriceOut">$160</output></label>
+              <input id="maxPrice" type="range" min="10" max="160" step="5" value="160">
+            </div>
+            <div class="filter-row">
+              <label class="check"><input type="checkbox" id="onlyMicro"> 只看可微波加熱</label>
+              <label for="sortBy" class="sr-only">排序</label>
+              <select id="sortBy">
+                <option value="price">惜食價低到高</option>
+                <option value="dist">離正門近到遠</option>
+                <option value="protein">蛋白質多到少</option>
+              </select>
+            </div>
+          </div>
+          <p class="count" id="listCount" aria-live="polite"></p>
+          <ul class="listings" id="listings"></ul>
+          <h3 class="subhead">洽談中的店家</h3>
+          <ul class="pending-shops" id="pendingShops"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 組一餐 -->
+    <section class="view" id="view-combo" aria-labelledby="h-combo">
+      <div class="narrow">
+        <h2 id="h-combo">用剩食組一份均衡的餐</h2>
+        <p class="lede">依國健署「我的餐盤」概念，從主食、蛋白質、蔬菜各挑一樣，在預算內排出最省、最順路的組合。</p>
+        <div class="budget">
+          <label for="budget">這餐預算</label>
+          <div class="budget-input"><span>$</span><input id="budget" type="number" min="20" max="500" step="5" value="100" inputmode="numeric"></div>
+          <label class="check"><input type="checkbox" id="noFried" checked> 避開油炸</label>
+        </div>
+        <h3 class="subhead">跨店組餐</h3>
+        <ol class="combos" id="combos"></ol>
+        <h3 class="subhead">預算內的完整餐盒</h3>
+        <ul class="listings compact" id="boxes"></ul>
+      </div>
+    </section>
+
+    <!-- 我的營養 -->
+    <section class="view" id="view-nutri" aria-labelledby="h-nutri">
+      <div class="narrow">
+        <h2 id="h-nutri">今天還差多少營養</h2>
+        <p class="lede">用國健署 DRIs 第八版算出你的每日建議量，再記下今天吃了什麼，看看還缺什麼。數值為估算，僅供參考，不是醫療建議。</p>
+        <form class="profile" id="profile">
+          <label>性別
+            <select name="sex"><option>女</option><option>男</option></select>
+          </label>
+          <label>年齡<input name="age" type="number" min="16" max="100" value="20" inputmode="numeric"></label>
+          <label>身高 (cm)<input name="height" type="number" min="120" max="220" value="160" inputmode="decimal"></label>
+          <label>體重 (kg)<input name="weight" type="number" min="30" max="200" value="52" inputmode="decimal"></label>
+          <label>活動量
+            <select name="activity">
+              <option value="低">低（多坐著）</option>
+              <option value="稍低" selected>稍低（上課、走路）</option>
+              <option value="適度">適度（每天運動）</option>
+              <option value="高">高（勞力、訓練）</option>
+            </select>
+          </label>
+        </form>
+        <p class="energy-note" id="energyNote"></p>
+
+        <div class="log">
+          <h3 class="subhead">今天吃了什麼</h3>
+          <div class="search">
+            <label for="foodSearch" class="sr-only">搜尋食材</label>
+            <input id="foodSearch" type="search" placeholder="搜尋食藥署資料庫，例如：雞胸、白飯、豆漿" autocomplete="off">
+            <label for="foodGrams" class="sr-only">克數</label>
+            <input id="foodGrams" type="number" min="1" max="2000" value="100" inputmode="numeric" aria-describedby="gramsUnit"><span id="gramsUnit">g</span>
+          </div>
+          <ul class="results" id="foodResults" role="listbox" aria-label="搜尋結果"></ul>
+          <ul class="eaten" id="eaten"></ul>
+        </div>
+
+        <h3 class="subhead">和每日建議量比較</h3>
+        <div class="bars" id="bars"></div>
+        <h3 class="subhead">下一餐推薦</h3>
+        <p class="hint" id="nextHint"></p>
+        <ul class="listings compact" id="nextMeal"></ul>
+      </div>
+    </section>
+
+    <!-- 剩食料理 -->
+    <section class="view" id="view-recipe" aria-labelledby="h-recipe">
+      <div class="narrow">
+        <h2 id="h-recipe">買回來的剩食怎麼煮</h2>
+        <p class="lede">選你手邊的設備和食材，找 15 分鐘內做得完的料理。營養以食藥署資料計算。</p>
+        <div class="chips" role="group" aria-label="設備" id="equipChips"></div>
+        <div class="chips" role="group" aria-label="手邊食材" id="ingChips"></div>
+        <ul class="recipes" id="recipes"></ul>
+        <p class="hint">示範食譜，正式版需請具營養背景的同學審閱。食譜庫找不到時，第二階段才接 Gemini 產生。</p>
+      </div>
+    </section>
+
+    <!-- 資料來源 -->
+    <section class="view" id="view-data" aria-labelledby="h-data">
+      <div class="narrow">
+        <h2 id="h-data">這些數字從哪裡來</h2>
+        <p class="lede">RescuEat 不用自創的「健康分數」。熱量、營養、建議攝取量都查自官方資料，這裡是資料處理的結果。</p>
+        <div class="stat-grid" id="statGrid"></div>
+        <h3 class="subhead">清理後的食材分類</h3>
+        <div class="hbars" id="groupBars"></div>
+        <h3 class="subhead">每 100 大卡蛋白質最多的蛋白質類食材</h3>
+        <ol class="rank" id="topProtein"></ol>
+        <h3 class="subhead">資料來源</h3>
+        <ul class="sources">
+          <li><a href="https://data.gov.tw/dataset/8543" target="_blank" rel="noopener">衛福部食藥署 食品營養成分資料集</a>：每 100 g 營養素，清理後 2,207 項</li>
+          <li>國健署「國人膳食營養素參考攝取量」第八版總表（民國 111 年）：16 歲以上成人需求</li>
+          <li><a href="https://web.ntnu.edu.tw/~499002011/evaluation.html" target="_blank" rel="noopener">台師大 成人每日均衡飲食建議量</a>：六大類份數</li>
+          <li><a href="https://bonbox.tw/menu/" target="_blank" rel="noopener">楽坡 BonBox 官網菜單</a>（2026/07/13 更新）</li>
+          <li><a href="https://www.foodpanda.com.tw/restaurant/b933/get-power-gei-li-he-zi-zheng-da-dian-b933" target="_blank" rel="noopener">GET POWER 給力盒子 政大店 foodpanda 菜單</a>（2026/11/01 查詢）</li>
+          <li>店家座標與營業時間：Google 地圖（2026/11/01 查詢）；底圖 © OpenStreetMap contributors</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="reserveDialog" aria-labelledby="dlgTitle">
+    <form method="dialog" class="dlg">
+      <h3 id="dlgTitle">預訂這份惜食</h3>
+      <div id="dlgBody"></div>
+      <menu class="dlg-actions">
+        <button value="cancel" class="btn ghost">取消</button>
+        <button value="confirm" class="btn primary" id="dlgConfirm">確認預訂</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="data/shops.js"></script>
+  <script src="data/listings.js"></script>
+  <script src="data/foods.js"></script>
+  <script src="data/dris.js"></script>
+  <script src="data/recipes.js"></script>
+  <script src="data/stats.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
