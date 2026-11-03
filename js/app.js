@@ -15,7 +15,7 @@
   const shopById = Object.fromEntries(SHOPS.map((s) => [s.id, s]));
   const foodById = Object.fromEntries(FOODS.map((f) => [f.id, f]));
   const CATS = ["主食", "蛋白質", "蔬菜"];
-  const GROUP_COLOR = { 主食: "var(--g-staple)", 蛋白質: "var(--g-protein)", 蔬菜: "var(--g-veg)", 乳品: "#6A7FB0", 水果: "#D06A1F", 油脂與堅果: "#8A6D3B", 其他: "#8C93A0" };
+  const GROUP_COLOR = { 主食: "var(--c-staple)", 蛋白質: "var(--c-protein)", 蔬菜: "var(--c-veg)", 乳品: "#6A7FB0", 水果: "#D06A1F", 油脂與堅果: "#8A6D3B", 其他: "#8C93A0" };
 
   let items = window.RE_LISTINGS.items.map((x) => ({ ...x }));
   const $ = (sel, el = document) => el.querySelector(sel);
@@ -28,8 +28,18 @@
     get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* 私密瀏覽等情況 */ } },
   };
-  let reservations = store.get("re_reservations", []);
-  let eaten = store.get("re_eaten", []);
+  // 預訂與飲食紀錄只算當天，隔天自動清空
+  const today = () => new Date().toLocaleDateString("sv");
+  let reservations = store.get("re_reservations", []).filter((r) => r.at && new Date(r.at).toLocaleDateString("sv") === today());
+  let eaten = store.get("re_eaten", []).filter((e) => e.d === today());
+
+  let toastTimer = null;
+  function toast(msg) {
+    const t = $("#toast");
+    t.textContent = msg; t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.hidden = true; }, 3200);
+  }
 
   // 套用本機預訂扣掉的份數（示範模式）
   function applyLocalReservations() {
@@ -65,8 +75,11 @@
     if (name === "map" && map) setTimeout(() => map.invalidateSize(), 0);
     if (name === "combo") renderCombos();
     if (name === "nutri") renderNutrition();
+    try { history.replaceState(null, "", `#${name}`); } catch { /* 部分瀏覽器的 file:// 不允許 */ }
   }
   $$(".tab").forEach((t) => t.addEventListener("click", () => showView(t.dataset.view)));
+  const viewFromHash = () => { const v = location.hash.slice(1); return $(`#view-${CSS.escape(v || "map")}`) ? v || "map" : "map"; };
+  window.addEventListener("hashchange", () => showView(viewFromHash()));
 
   // ---------- 品項 ----------
   const walkMin = (m) => Math.max(1, Math.ceil(m / 75));          // 步行約 75 公尺／分鐘
@@ -114,6 +127,14 @@
   function initMap() {
     map = L.map("map", { scrollWheelZoom: true, zoomControl: false }).setView([24.98775, 121.5759], 18);
     L.control.zoom({ position: "bottomright" }).addTo(map);
+    map.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
+    const legend = L.control({ position: "bottomleft" });
+    legend.onAdd = () => {
+      const el = L.DomUtil.create("div", "map-legend");
+      el.innerHTML = '<span><i class="lg-live"></i>今晚有惜食（數字是份數）</span><span><i class="lg-pending"></i>洽談中</span>';
+      return el;
+    };
+    legend.addTo(map);
     // 預設底圖：內政部國土測繪中心「臺灣通用電子地圖」（政府開放資料，中文標示、定期更新，免金鑰）
     const nlsc = L.tileLayer("https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}", {
       maxNativeZoom: 18, maxZoom: 19,
@@ -136,9 +157,9 @@
     // 一開始把政大正門附近 600 公尺內的店家都框進畫面（手機、電腦都適用）
     const near = SHOPS.filter((x) => distOf(x.id) < 600).map((x) => [x.lat, x.lng]);
     if (map.getSize().x < 600) {
-      // 手機：直接放大到能分清楚有剩食的店與正門
+      // 手機：畫面只框有剩食的店與正門，右邊多留空間給店名標籤
       const live = SHOPS.filter((x) => liveOf(x.id).length).map((x) => [x.lat, x.lng]);
-      map.setView(L.latLngBounds([[GATE.lat, GATE.lng], ...live]).getCenter(), 18);
+      map.fitBounds(L.latLngBounds([[GATE.lat, GATE.lng], ...live]), { paddingTopLeft: [28, 56], paddingBottomRight: [64, 56], maxZoom: 18 });
     } else {
       map.fitBounds(L.latLngBounds([[GATE.lat, GATE.lng], ...near]), { paddingTopLeft: [30, 50], paddingBottomRight: [120, 40], maxZoom: 18 });
     }
@@ -147,6 +168,11 @@
     map.on("zoomend", zoomClass); zoomClass();
   }
   function shortName(s) { return s.name.replace(/ 政大店| 給力盒子/g, "").replace("傳統甜點麵包店", ""); }
+  // 標示「起」價時以完整餐盒為準，避免半顆蛋這類加購品讓價格看起來失真
+  function fromLabel(list) {
+    const boxes = list.filter((x) => x.cat === "完整餐盒");
+    return boxes.length ? `餐盒 $${Math.min(...boxes.map((x) => x.deal))} 起` : `$${Math.min(...list.map((x) => x.deal))} 起`;
+  }
   function refreshMarkers() {
     if (!map) return;
     for (const s of SHOPS) {
@@ -154,7 +180,7 @@
       const on = filt.shop === s.id ? " is-on" : "";
       const n = live.reduce((t, x) => t + x.qty, 0);
       const html = live.length
-        ? `<span class="shop-pin live${on}"><span class="drop"><b>${n}</b></span><span class="lbl"><b>${esc(shortName(s))}</b><span>$${Math.min(...live.map((x) => x.deal))} 起</span></span></span>`
+        ? `<span class="shop-pin live${on}"><span class="drop"><b>${n}</b></span><span class="lbl"><b>${esc(shortName(s))}</b><span>${fromLabel(live)}</span></span></span>`
         : `<span class="shop-pin${on}"><span class="dot"></span><span class="lbl"><b>${esc(shortName(s))}</b><span>洽談中</span></span></span>`;
       markers[s.id].setIcon(L.divIcon({ className: "", html, iconSize: null, iconAnchor: [0, 0] }));
       markers[s.id].setZIndexOffset(live.length ? 1000 : 0);
@@ -172,7 +198,7 @@
   const focusShop = (id) => selectShop(id);
 
   // ---------- 剩食清單（依店家分組） ----------
-  const filt = { cat: "全部", micro: false, sort: "price", shop: null };
+  const filt = { cat: "全部", micro: false, sort: "box", shop: null };
   function shopHead(s, list) {
     const m = distOf(s.id);
     const until = list.map((x) => x.until).sort()[0];
@@ -191,14 +217,38 @@
     const live = items.filter((x) => x.qty > 0);
     const shops = new Set(live.map((x) => x.shop));
     const best = live.reduce((m, x) => Math.max(m, saveOf(x)), 0);
+    const boxes = live.filter((x) => x.cat === "完整餐盒");
     $("#tonight").innerHTML = live.length
-      ? `今晚 <b>${shops.size}</b> 家店出清 <b>${live.reduce((t, x) => t + x.qty, 0)}</b> 份，最低 <b>$${Math.min(...live.map((x) => x.deal))}</b>，最多省 <b>$${best}</b>`
-      : "今晚的惜食都被訂完了，明天傍晚再來看看。";
+      ? [[shops.size, "家店出清"], [live.reduce((t, x) => t + x.qty, 0), "份惜食"],
+         [boxes.length ? `$${Math.min(...boxes.map((x) => x.deal))}` : "—", "完整餐盒起"], [`$${best}`, "單份最多省"]]
+        .map(([b, t]) => `<div><b>${b}</b><span>${t}</span></div>`).join("")
+      : `<p>今晚的惜食都被訂完了，明天傍晚再來看看。</p>`;
+  }
+  function renderOrders() {
+    const box = $("#myOrders");
+    box.hidden = !reservations.length;
+    box.innerHTML = reservations.length ? `<h3>我的預訂</h3><ul>${reservations.map((r, i) => {
+      const its = r.itemIds.map((id) => items.find((x) => x.id === id)).filter(Boolean);
+      const until = its.map((x) => x.until).sort()[0];
+      return `<li>
+        <b class="order-code" title="到店出示取餐碼">${esc(r.code)}</b>
+        <div class="order-info">
+          <span>${its.map((x) => esc(x.name)).join("、")}</span>
+          <small>$${its.reduce((t, x) => t + x.deal, 0)}，${esc(until)} 前到店付款取餐</small>
+        </div>
+        ${CFG.APPS_SCRIPT_URL ? "" : `<button class="linklike" data-cancel="${i}">取消</button>`}
+      </li>`;
+    }).join("")}</ul>` : "";
   }
   function renderListings() {
     renderSummary();
+    renderOrders();
+    $$("#view-map .chip").forEach((c) => {
+      $("small", c).textContent = items.filter((x) => x.qty > 0 && (c.dataset.cat === "全部" || x.cat === c.dataset.cat) && (!filt.micro || x.micro) && (!filt.shop || x.shop === filt.shop)).length;
+    });
     let list = items.filter((x) => (filt.cat === "全部" || x.cat === filt.cat) && (!filt.micro || x.micro) && (!filt.shop || x.shop === filt.shop));
     const by = {
+      box: (a, b) => (b.cat === "完整餐盒") - (a.cat === "完整餐盒") || a.deal - b.deal,
       price: (a, b) => a.deal - b.deal,
       save: (a, b) => saveOf(b) - saveOf(a),
       protein: (a, b) => (b.protein ?? -1) - (a.protein ?? -1),
@@ -235,6 +285,19 @@
     if (c) openReserve(c.dataset.reserveCombo.split(","));
     const f = e.target.closest("[data-focus-shop]");
     if (f) focusShop(f.dataset.focusShop);
+    const d = e.target.closest("[data-cancel]");
+    if (d) cancelReservation(+d.dataset.cancel);
+  });
+  function cancelReservation(i) {
+    const [r] = reservations.splice(i, 1);
+    r.itemIds.forEach((id) => { const it = items.find((x) => x.id === id); if (it) it.qty += 1; });
+    store.set("re_reservations", reservations);
+    renderAll();
+    toast("已取消預訂，份數已放回。");
+  }
+  $("#resetDemo").addEventListener("click", () => {
+    ["re_reservations", "re_eaten", "re_profile"].forEach((k) => { try { localStorage.removeItem(k); } catch { /* 私密瀏覽等情況 */ } });
+    location.reload();
   });
 
   // ---------- 預訂 ----------
@@ -251,20 +314,23 @@
     $("#dlgConfirm").disabled = its.some((x) => x.qty <= 0);
     dlg.showModal();
   }
+  dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close("cancel"); });   // 點背景關閉
   dlg.addEventListener("close", async () => {
     if (dlg.returnValue !== "confirm") return;
     const code = String(Math.floor(1000 + Math.random() * 9000));
     if (CFG.APPS_SCRIPT_URL) {
       try {
-        await fetch(CFG.APPS_SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "reserve", itemIds: pendingIds, code }) });
-      } catch { alert("預訂沒有送出，請檢查網路後再試一次。"); return; }
+        const res = await fetch(CFG.APPS_SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "reserve", itemIds: pendingIds, code }) });
+        const data = await res.json();
+        if (!data.ok) { toast("有品項剛被訂走了，請重新整理後再試一次。"); return; }
+      } catch { toast("預訂沒有送出，請檢查網路後再試一次。"); return; }
     }
     pendingIds.forEach((id) => { const it = items.find((x) => x.id === id); it.qty = Math.max(0, it.qty - 1); });
     reservations.push({ code, itemIds: pendingIds, at: new Date().toISOString() });
     store.set("re_reservations", reservations);
     renderAll();
     $("#dlgTitle").textContent = "已預訂";
-    $("#dlgBody").innerHTML = `<p>到店出示取餐碼：</p><p class="pickup-code">${code}</p><p class="hint">示範模式：預訂只存在這台裝置。</p>`;
+    $("#dlgBody").innerHTML = `<p>到店出示取餐碼：</p><p class="pickup-code">${code}</p>${CFG.APPS_SCRIPT_URL ? "" : `<p class="hint">示範模式：預訂只存在這台裝置，可以在剩食地圖的「我的預訂」取消。</p>`}`;
     $("#dlgConfirm").hidden = true;
     const cancelBtn = $(".dlg-actions .ghost"); cancelBtn.textContent = "關閉";
     dlg.returnValue = "";
@@ -302,32 +368,41 @@
     const budget = Math.max(0, +$("#budget").value || 0);
     const noFried = $("#noFried").checked;
     const combos = buildCombos(budget, noFried);
+    const cheapest = combos.length ? null : buildCombos(Infinity, noFried)[0];
     $("#combos").innerHTML = combos.length ? combos.map((c) => {
       const parts = [c.s, c.p, c.v];
       const kcal = parts.reduce((t, x) => t + (x.kcal || 0), 0);
       const prot = parts.reduce((t, x) => t + (x.protein || 0), 0);
       const est = parts.some((x) => x.nsrc !== "official");
+      const orig = parts.reduce((t, x) => t + x.price, 0);
       const shops = c.route.order.map((id) => shopById[id].name);
       return `<li class="combo">
-        <div class="combo-head"><h4>${shops.length > 1 ? `跨 ${shops.length} 家店` : esc(shops[0])}</h4><span class="combo-total">$${c.total}</span></div>
+        <div class="combo-head"><h4>${shops.length > 1 ? `跨 ${shops.length} 家店` : esc(shops[0])}</h4>
+          <div class="combo-price"><span class="combo-total">$${c.total}</span><small>原價 <s>$${orig}</s>，<b>省 $${orig - c.total}</b></small></div>
+        </div>
         <div class="plate">
           <div class="s"><b>主食</b>${esc(c.s.name)} $${c.s.deal}</div>
           <div class="p"><b>蛋白質</b>${esc(c.p.name)} $${c.p.deal}</div>
           <div class="v"><b>蔬菜</b>${esc(c.v.name)} $${c.v.deal}</div>
         </div>
-        <ul class="badges"><li>有主食</li><li>有蛋白質</li><li>有蔬菜</li>${parts.every((x) => !x.fried) ? "<li>非油炸</li>" : ""}</ul>
-        <p class="meta">約 ${fmt(kcal)} 大卡，蛋白質 ${fmt(prot, 1)} g${est ? `（${CFG.ESTIMATE_NOTE}）` : ""}。取餐路線：${shops.map(esc).join("、")}，從正門走約 ${distLabel(c.route.total)}。</p>
+        <ul class="badges"><li>約 ${fmt(kcal)} 大卡</li><li>蛋白質 ${fmt(prot, 1)} g</li>${parts.every((x) => !x.fried) ? "<li>非油炸</li>" : ""}</ul>
+        <p class="meta">${est ? `營養含${CFG.ESTIMATE_NOTE}。` : ""}取餐路線：${shops.map(esc).join("、")}，從正門走約 ${distLabel(c.route.total)}。</p>
         <div class="combo-act">
           <button class="btn" data-reserve-combo="${parts.map((x) => x.id).join(",")}">預訂這組</button>
           <a class="btn ghost" href="${walkLink(c.route.order)}" target="_blank" rel="noopener">看取餐路線</a>
         </div>
       </li>`;
-    }).join("") : `<li class="empty">$${budget} 內組不出主食＋蛋白質＋蔬菜。試著把預算提高到 $70 以上，或看看下方的完整餐盒。</li>`;
+    }).join("") : `<li class="empty">${cheapest ? `$${budget} 內組不出主食＋蛋白質＋蔬菜，目前最便宜的組合要 $${cheapest.total}。` : "目前的品項湊不齊主食＋蛋白質＋蔬菜。"}可以看看下方的完整餐盒。</li>`;
+    $$("#budgetChips .chip").forEach((c) => c.classList.toggle("is-on", +c.dataset.budget === budget));
     const boxes = items.filter((x) => x.cat === "完整餐盒" && x.qty > 0 && x.deal <= budget).sort((a, b) => a.deal - b.deal);
     $("#boxes").innerHTML = boxes.length ? boxes.map((x) => itemRow(x, { showShop: true })).join("") : `<li class="empty">預算內沒有完整餐盒。</li>`;
   }
   $("#budget").addEventListener("input", renderCombos);
   $("#noFried").addEventListener("change", renderCombos);
+  $("#budgetChips").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-budget]"); if (!b) return;
+    $("#budget").value = b.dataset.budget; renderCombos();
+  });
 
   // ---------- 我的營養 ----------
   const PAL = { 低: 1.3, 稍低: 1.5, 適度: 1.7, 高: 1.9 };
@@ -337,7 +412,9 @@
     const fd = new FormData($("#profile"));
     const p = Object.fromEntries(fd.entries());
     store.set("re_profile", p);
-    return { sex: p.sex, age: +p.age || 20, height: +p.height || 160, weight: +p.weight || 55, activity: p.activity };
+    // 輸入到一半或超出範圍時，用合理範圍內的值計算
+    const within = (v, lo, hi, d) => Math.min(hi, Math.max(lo, +v || d));
+    return { sex: p.sex, age: within(p.age, 16, 100, 20), height: within(p.height, 120, 220, 160), weight: within(p.weight, 30, 200, 55), activity: p.activity };
   }
   function needsFor(p) {
     const age = Math.max(16, p.age);
@@ -380,9 +457,14 @@
     $("#bars").innerHTML = N.targets.map((t) => {
       const got = T[t.key] || 0, pct = t.need ? got / t.need * 100 : 0;
       const over = t.upper && got > t.need;
+      const done = !t.upper && got >= t.need;
+      const d = t.unit === "mg" && t.need < 50 ? 1 : 0;
+      const status = t.upper
+        ? (over ? `超過上限 ${fmt(got - t.need)} ${t.unit}` : `離上限還有 ${fmt(t.need - got)} ${t.unit}`)
+        : (done ? "已達建議量" : `還差 ${fmt(t.need - got, d)} ${t.unit}`);
       return `<div class="bar-row"><span>${t.label}</span>
         <div class="bar ${over ? "over" : ""}" role="img" aria-label="${t.label} ${fmt(pct)}%"><span style="width:${Math.min(100, pct)}%"></span></div>
-        <span class="v">${fmt(got, t.unit === "mg" && t.need < 50 ? 1 : 0)} / ${fmt(t.need)} ${t.unit}</span></div>`;
+        <span class="v">${fmt(got, d)} / ${fmt(t.need)} ${t.unit}<small class="${over ? "is-over" : done ? "is-done" : ""}">${status}</small></span></div>`;
     }).join("");
     // 下一餐：剩餘熱量的 45% 當作這一餐的額度，優先補蛋白質
     const leftKcal = Math.max(0, N.kcal - (T.energy_kcal || 0));
@@ -395,7 +477,8 @@
       return { x, s: cover - over, cover };
     }).sort((a, b) => b.s - a.s).slice(0, 3);
     $("#nextHint").textContent = `你今天還剩約 ${fmt(leftKcal)} 大卡、蛋白質還差 ${fmt(gapP, 1)} g。下一餐以 ${fmt(mealKcal)} 大卡為額度，優先補蛋白質。`;
-    $("#nextMeal").innerHTML = scored.map(({ x, cover }) => itemRow(x, { showShop: true, note: `可補今天蛋白質缺口的 ${fmt(cover * 100)}%` })).join("");
+    $("#nextMeal").innerHTML = scored.map(({ x, cover }) => itemRow(x, { showShop: true, note: gapP ? `可補今天蛋白質缺口的 ${fmt(cover * 100)}%` : "今天蛋白質已達建議量" })).join("")
+      || `<li class="empty">今晚的完整餐盒都訂完了。</li>`;
   }
   $("#profile").addEventListener("input", renderNutrition);
   $("#eaten").addEventListener("click", (e) => {
@@ -444,14 +527,21 @@
       const nm = friendly(f);
       return `<li><button data-add="${f.id}"><span>${esc(nm.main)} <small>${esc(f.g)}</small>${nm.official ? `<small class="official">食藥署名稱：${esc(nm.official)}</small>` : ""}</span><small>${fmt(f.energy_kcal)} 大卡、蛋白質 ${fmt(f.protein_g ?? 0, 1)} g / 100 g</small></button></li>`;
     }).join("")
-      || (e.target.value.trim() ? `<li class="hint">資料庫裡找不到「${esc(e.target.value)}」，換個說法試試，例如「雞腿」改「清腿」。</li>` : "");
+      || (e.target.value.trim() ? `<li class="hint">資料庫裡找不到「${esc(e.target.value)}」。換個說法或只打食材名稱試試，例如「滷雞腿」改「雞腿」。</li>` : "");
+  });
+  $(".quick").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-quick]"); if (!b) return;
+    const box = $("#foodSearch");
+    box.value = b.dataset.quick; box.dispatchEvent(new Event("input")); box.focus();
   });
   $("#foodResults").addEventListener("click", (e) => {
     const b = e.target.closest("[data-add]"); if (!b) return;
-    eaten.push({ id: b.dataset.add, g: Math.max(1, +$("#foodGrams").value || 100) });
+    const g = Math.max(1, +$("#foodGrams").value || 100);
+    eaten.push({ id: b.dataset.add, g, d: today() });
     store.set("re_eaten", eaten);
     $("#foodSearch").value = ""; $("#foodResults").innerHTML = "";
     renderNutrition();
+    toast(`已記錄 ${friendly(foodById[b.dataset.add]).main} ${fmt(g)} g`);
   });
 
   // ---------- 剩食料理 ----------
@@ -468,9 +558,9 @@
       .map((r) => ({ r, match: r.items.filter((it) => [...rSel.ing].some((k) => it.label.includes(k))).length }))
       .sort((a, b) => b.match - a.match || a.r.min - b.r.min);
     $("#recipes").innerHTML = list.length ? list.map(({ r, match }) => `<li class="recipe">
-      <h4>${esc(r.name)}</h4>
-      <p class="meta">${esc(r.equip.join("、"))}，約 ${r.min} 分鐘，${fmt(r.kcal)} 大卡，蛋白質 ${fmt(r.protein, 1)} g${rSel.ing.size ? `，你有其中 ${match} 樣` : ""}</p>
-      <ul>${r.items.map((it) => `<li class="${[...rSel.ing].some((k) => it.label.includes(k)) ? "have" : ""}">${esc(it.label)}（${it.g} g）</li>`).join("")}</ul>
+      <div class="recipe-head"><h4>${esc(r.name)}</h4>${rSel.ing.size ? `<span class="have-count ${match ? "" : "none"}">你有 ${match} 樣</span>` : ""}</div>
+      <p class="meta"><b>${esc(r.equip.join("、"))}</b><span>約 ${r.min} 分鐘</span><span>${fmt(r.kcal)} 大卡</span><span>蛋白質 ${fmt(r.protein, 1)} g</span></p>
+      <ul>${r.items.map((it) => `<li class="${[...rSel.ing].some((k) => it.label.includes(k)) ? "have" : ""}">${esc(it.label)}<small>${it.g} g</small></li>`).join("")}</ul>
       <ol>${r.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
     </li>`).join("") : `<li class="empty">這個設備還沒有食譜。取消一個設備條件看看。</li>`;
   }
@@ -479,14 +569,14 @@
   function renderData() {
     const s = STATS;
     $("#statGrid").innerHTML = [
-      [fmt(s.rawRows), "筆原始營養數值（食藥署）"],
-      [`${fmt(s.rawFoods)} → ${fmt(s.kept)}`, "項食材，清理後保留"],
-      [fmt(s.droppedCore + s.droppedSparse), "項因核心數值缺漏剔除"],
+      [fmt(s.rawRows), "筆原始營養數值"],
+      [fmt(s.kept), `項食材保留（原始 ${fmt(s.rawFoods)} 項）`],
+      [fmt(s.droppedCore + s.droppedSparse), "項因數值缺漏過多剔除"],
       [fmt(s.imputedFiber + s.imputedB12), "筆天然不含的缺值補 0（纖維、B12）"],
     ].map(([b, t]) => `<div class="stat"><b>${b}</b><span>${t}</span></div>`).join("");
     const g = Object.entries(s.groups).sort((a, b) => b[1] - a[1]);
     const max = g[0][1];
-    $("#groupBars").innerHTML = g.map(([k, v]) => `<div class="hbar"><span>${esc(k)}</span><div class="track"><div class="fill" style="width:${v / max * 100}%;--gc:${GROUP_COLOR[k] || "var(--night-2)"}"></div></div><span class="n">${fmt(v)}</span></div>`).join("");
+    $("#groupBars").innerHTML = g.map(([k, v]) => `<div class="hbar"><span>${esc(k)}</span><div class="track"><div class="fill" style="width:${v / max * 100}%;--gc:${GROUP_COLOR[k] || "var(--muted)"}"></div></div><span class="n">${fmt(v)}</span></div>`).join("");
     $("#topProtein").innerHTML = s.topProtein.map((x) => `<li>${esc(x.n)}：每 100 大卡 ${x.v} g</li>`).join("");
   }
 
@@ -497,8 +587,8 @@
     try {
       const res = await fetch(`${CFG.APPS_SCRIPT_URL}?action=listings`);
       const data = await res.json();
-      if (Array.isArray(data.items)) { items = data.items; $(".demo-note").textContent = "品項由合作店家即時上架。"; }
-    } catch { $(".demo-note").textContent = "連不到店家資料，目前顯示示範品項。"; }
+      if (Array.isArray(data.items)) { items = data.items; $("#demoText").textContent = "品項由合作店家即時上架。"; $("#resetDemo").hidden = true; }
+    } catch { $("#demoText").textContent = "連不到店家資料，目前顯示示範品項。"; }
   }
   (async function start() {
     await loadRemote();
@@ -507,5 +597,6 @@
     renderAll();
     renderRecipes();
     renderData();
+    if (viewFromHash() !== "map") showView(viewFromHash());
   })();
 })();
