@@ -15,7 +15,6 @@
   const shopById = Object.fromEntries(SHOPS.map((s) => [s.id, s]));
   const foodById = Object.fromEntries(FOODS.map((f) => [f.id, f]));
   const CATS = ["主食", "蛋白質", "蔬菜"];
-  const GROUP_COLOR = { 主食: "var(--c-staple)", 蛋白質: "var(--c-protein)", 蔬菜: "var(--c-veg)", 乳品: "#6A7FB0", 水果: "#D06A1F", 油脂與堅果: "#8A6D3B", 其他: "#8C93A0" };
 
   let items = window.RE_LISTINGS.items.map((x) => ({ ...x }));
   const $ = (sel, el = document) => el.querySelector(sel);
@@ -87,9 +86,9 @@
   const offOf = (it) => Math.round((it.deal / it.price) * 10 * 10) / 10;   // 7 → 「7 折」
   function nutriText(it) {
     if (it.kcal == null) return `<span class="nutri">營養待店家標示</span>`;
-    const src = it.nsrc === "official" ? "店家標示" : CFG.ESTIMATE_NOTE;
-    const tip = it.nsrc === "official" ? "店家官方營養標示" : `${CFG.ESTIMATE_NOTE}：${it.nnote || ""}`;
-    return `<span class="nutri" title="${esc(tip)}">${fmt(it.kcal)} 大卡・蛋白質 ${fmt(it.protein, 1)} g <small>${src}</small></span>`;
+    const official = it.nsrc === "official";
+    const tip = official ? "店家官方營養標示" : `${CFG.ESTIMATE_NOTE}：${it.nnote || ""}`;
+    return `<span class="nutri" title="${esc(tip)}">${fmt(it.kcal)} 大卡，蛋白質 ${fmt(it.protein, 1)} g${official ? "" : `，<small>${CFG.ESTIMATE_NOTE}</small>`}</span>`;
   }
   function codeFor(itemId) {
     const r = [...reservations].reverse().find((x) => x.itemIds.includes(itemId));
@@ -100,18 +99,15 @@
     const code = codeFor(it.id);
     const soldOut = it.qty <= 0;
     const shop = shopById[it.shop];
-    return `<li class="row ${soldOut ? "is-out" : ""}" data-cat="${esc(it.cat)}">
-      <div class="row-main">
-        <span class="cat"><i aria-hidden="true"></i>${esc(it.cat)}</span>
-        <h4>${esc(it.name)}</h4>
+    return `<li class="row ${soldOut ? "is-out" : ""}">
+      <div class="row-line">
+        <h4>${esc(it.name)}</h4><span class="leader" aria-hidden="true"></span>
+        <span class="price" title="惜食價：打烊前的出清價"><s aria-label="原價 ${it.price} 元">$${it.price}</s><b>$${it.deal}</b></span>
+      </div>
+      <div class="row-sub">
         ${showShop ? `<p class="row-shop"><button class="linklike" data-focus-shop="${esc(it.shop)}">${esc(shop.name)}</button>，步行 ${walkMin(distOf(it.shop))} 分鐘</p>` : ""}
         ${note ? `<p class="row-note">${note}</p>` : ""}
-        <p class="row-meta">${nutriText(it)}${it.micro ? `<span class="tag">可微波</span>` : ""}<span class="left ${it.qty <= 1 && !soldOut ? "low" : ""}">${soldOut ? "已訂完" : `剩 ${it.qty} 份`}</span></p>
-      </div>
-      <div class="row-price">
-        <span class="sticker" title="惜食價：打烊前的出清價">$${it.deal}</span>
-        <span class="was">原價 <s>$${it.price}</s></span>
-        <span class="save">省 $${saveOf(it)}</span>
+        <p class="row-meta"><span>${esc(it.cat)}</span>${nutriText(it)}${it.micro ? `<span>可微波</span>` : ""}<span class="left ${it.qty <= 1 && !soldOut ? "low" : ""}">${soldOut ? "已訂完" : `剩 ${it.qty} 份`}</span></p>
       </div>
       <div class="row-act">
         ${code ? `<span class="code" title="到店出示取餐碼">取餐碼 <b>${esc(code)}</b></span>`
@@ -128,13 +124,6 @@
     map = L.map("map", { scrollWheelZoom: true, zoomControl: false }).setView([24.98775, 121.5759], 18);
     L.control.zoom({ position: "bottomright" }).addTo(map);
     map.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
-    const legend = L.control({ position: "bottomleft" });
-    legend.onAdd = () => {
-      const el = L.DomUtil.create("div", "map-legend");
-      el.innerHTML = '<span><i class="lg-live"></i>今晚有惜食（數字是份數）</span><span><i class="lg-pending"></i>洽談中</span>';
-      return el;
-    };
-    legend.addTo(map);
     // 預設底圖：內政部國土測繪中心「臺灣通用電子地圖」（政府開放資料，中文標示、定期更新，免金鑰）
     const nlsc = L.tileLayer("https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}", {
       maxNativeZoom: 18, maxZoom: 19,
@@ -180,7 +169,7 @@
       const on = filt.shop === s.id ? " is-on" : "";
       const n = live.reduce((t, x) => t + x.qty, 0);
       const html = live.length
-        ? `<span class="shop-pin live${on}"><span class="drop"><b>${n}</b></span><span class="lbl"><b>${esc(shortName(s))}</b><span>${fromLabel(live)}</span></span></span>`
+        ? `<span class="shop-pin live${on}"><span class="lbl"><b>${esc(shortName(s))}</b><span>${n} 份，${fromLabel(live)}</span></span></span>`
         : `<span class="shop-pin${on}"><span class="dot"></span><span class="lbl"><b>${esc(shortName(s))}</b><span>洽談中</span></span></span>`;
       markers[s.id].setIcon(L.divIcon({ className: "", html, iconSize: null, iconAnchor: [0, 0] }));
       markers[s.id].setZIndexOffset(live.length ? 1000 : 0);
@@ -219,10 +208,9 @@
     const best = live.reduce((m, x) => Math.max(m, saveOf(x)), 0);
     const boxes = live.filter((x) => x.cat === "完整餐盒");
     $("#tonight").innerHTML = live.length
-      ? [[shops.size, "家店出清"], [live.reduce((t, x) => t + x.qty, 0), "份惜食"],
-         [boxes.length ? `$${Math.min(...boxes.map((x) => x.deal))}` : "—", "完整餐盒起"], [`$${best}`, "單份最多省"]]
-        .map(([b, t]) => `<div><b>${b}</b><span>${t}</span></div>`).join("")
-      : `<p>今晚的惜食都被訂完了，明天傍晚再來看看。</p>`;
+      ? `<p class="tonight-main">今晚 ${shops.size} 家店還有 ${live.reduce((t, x) => t + x.qty, 0)} 份</p>
+         <p class="tonight-sub">${boxes.length ? `完整餐盒 <b>$${Math.min(...boxes.map((x) => x.deal))}</b> 起，` : ""}單份最多省 <b>$${best}</b></p>`
+      : `<p class="tonight-main">今晚的惜食都訂完了</p><p class="tonight-sub">明天傍晚再來看看。</p>`;
   }
   function renderOrders() {
     const box = $("#myOrders");
@@ -369,7 +357,7 @@
     const noFried = $("#noFried").checked;
     const combos = buildCombos(budget, noFried);
     const cheapest = combos.length ? null : buildCombos(Infinity, noFried)[0];
-    $("#combos").innerHTML = combos.length ? combos.map((c) => {
+    $("#combos").innerHTML = combos.length ? combos.map((c, i) => {
       const parts = [c.s, c.p, c.v];
       const kcal = parts.reduce((t, x) => t + (x.kcal || 0), 0);
       const prot = parts.reduce((t, x) => t + (x.protein || 0), 0);
@@ -377,16 +365,12 @@
       const orig = parts.reduce((t, x) => t + x.price, 0);
       const shops = c.route.order.map((id) => shopById[id].name);
       return `<li class="combo">
-        <div class="combo-head"><h4>${shops.length > 1 ? `跨 ${shops.length} 家店` : esc(shops[0])}</h4>
-          <div class="combo-price"><span class="combo-total">$${c.total}</span><small>原價 <s>$${orig}</s>，<b>省 $${orig - c.total}</b></small></div>
-        </div>
-        <div class="plate">
-          <div class="s"><b>主食</b>${esc(c.s.name)} $${c.s.deal}</div>
-          <div class="p"><b>蛋白質</b>${esc(c.p.name)} $${c.p.deal}</div>
-          <div class="v"><b>蔬菜</b>${esc(c.v.name)} $${c.v.deal}</div>
-        </div>
-        <ul class="badges"><li>約 ${fmt(kcal)} 大卡</li><li>蛋白質 ${fmt(prot, 1)} g</li>${parts.every((x) => !x.fried) ? "<li>非油炸</li>" : ""}</ul>
-        <p class="meta">${est ? `營養含${CFG.ESTIMATE_NOTE}。` : ""}取餐路線：${shops.map(esc).join("、")}，從正門走約 ${distLabel(c.route.total)}。</p>
+        <div class="combo-head"><h4>${shops.length > 1 ? `跨 ${shops.length} 家店` : esc(shops[0])}</h4><span>No.${i + 1}</span></div>
+        <dl class="lines">
+          ${[["主食", c.s], ["蛋白質", c.p], ["蔬菜", c.v]].map(([k, x]) => `<div><dt>${k}</dt><dd>${esc(x.name)}</dd><span class="leader" aria-hidden="true"></span><dd class="amt">$${x.deal}</dd></div>`).join("")}
+        </dl>
+        <div class="combo-total"><span>合計</span><s aria-label="原價 ${orig} 元">$${orig}</s><b>$${c.total}</b></div>
+        <p class="meta">約 ${fmt(kcal)} 大卡，蛋白質 ${fmt(prot, 1)} g${parts.every((x) => !x.fried) ? "，非油炸" : ""}。${est ? `營養含${CFG.ESTIMATE_NOTE}。` : ""}<br>取餐路線：${shops.map(esc).join("、")}，從正門走約 ${distLabel(c.route.total)}。</p>
         <div class="combo-act">
           <button class="btn" data-reserve-combo="${parts.map((x) => x.id).join(",")}">預訂這組</button>
           <a class="btn ghost" href="${walkLink(c.route.order)}" target="_blank" rel="noopener">看取餐路線</a>
@@ -557,6 +541,7 @@
     let list = RECIPES.filter((r) => !rSel.equip.size || r.equip.some((x) => rSel.equip.has(x)))
       .map((r) => ({ r, match: r.items.filter((it) => [...rSel.ing].some((k) => it.label.includes(k))).length }))
       .sort((a, b) => b.match - a.match || a.r.min - b.r.min);
+    $("#recipeCount").textContent = `${list.length} 道`;
     $("#recipes").innerHTML = list.length ? list.map(({ r, match }) => `<li class="recipe">
       <div class="recipe-head"><h4>${esc(r.name)}</h4>${rSel.ing.size ? `<span class="have-count ${match ? "" : "none"}">你有 ${match} 樣</span>` : ""}</div>
       <p class="meta"><b>${esc(r.equip.join("、"))}</b><span>約 ${r.min} 分鐘</span><span>${fmt(r.kcal)} 大卡</span><span>蛋白質 ${fmt(r.protein, 1)} g</span></p>
@@ -576,8 +561,8 @@
     ].map(([b, t]) => `<div class="stat"><b>${b}</b><span>${t}</span></div>`).join("");
     const g = Object.entries(s.groups).sort((a, b) => b[1] - a[1]);
     const max = g[0][1];
-    $("#groupBars").innerHTML = g.map(([k, v]) => `<div class="hbar"><span>${esc(k)}</span><div class="track"><div class="fill" style="width:${v / max * 100}%;--gc:${GROUP_COLOR[k] || "var(--muted)"}"></div></div><span class="n">${fmt(v)}</span></div>`).join("");
-    $("#topProtein").innerHTML = s.topProtein.map((x) => `<li>${esc(x.n)}：每 100 大卡 ${x.v} g</li>`).join("");
+    $("#groupBars").innerHTML = g.map(([k, v]) => `<div class="hbar"><span>${esc(k)}</span><div class="track"><div class="fill" style="width:${v / max * 100}%"></div></div><span class="n">${fmt(v)}</span></div>`).join("");
+    $("#topProtein").innerHTML = s.topProtein.map((x) => `<li><span>${esc(x.n)}</span><i class="leader" aria-hidden="true"></i><b>${x.v} g</b></li>`).join("");
   }
 
   // ---------- 啟動 ----------

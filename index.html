@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="icon" href="img/logo.svg" type="image/svg+xml">
-  <meta name="theme-color" content="#FFF4D6">
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#FFFFFF">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@900&family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -88,9 +88,10 @@
 
     <!-- 組一餐 -->
     <section class="view" id="view-combo" aria-labelledby="h-combo">
-      <div class="narrow">
+      <div class="shell">
+        <aside class="rail">
         <h2 id="h-combo">用剩食組一份均衡的餐</h2>
-        <p class="lede">依國健署「我的餐盤」概念，從主食、蛋白質、蔬菜各挑一樣，在預算內排出最省、最順路的組合。品項分散在不同店家時，也會幫你排好取餐順序。</p>
+        <p class="lede">依國健署「我的餐盤」概念，從主食、蛋白質、蔬菜各挑一樣，在預算內排出最省、最順路的組合。</p>
         <div class="budget">
           <label for="budget">這餐預算</label>
           <div class="budget-input"><span>$</span><input id="budget" type="number" min="20" max="500" step="5" value="100" inputmode="numeric"></div>
@@ -101,17 +102,21 @@
           </div>
           <label class="check"><input type="checkbox" id="noFried" checked> 避開油炸</label>
         </div>
+        <p class="hint rail-note">楽坡菜單註明加購品平常不單售。這裡假設打烊前可以單獨出清，正式上線前會和店家確認。</p>
+        </aside>
+        <div class="main">
         <h3 class="subhead">幫你配好的組合</h3>
         <ol class="combos" id="combos"></ol>
-        <p class="hint combo-caveat">楽坡菜單註明加購品平常不單售。這裡假設打烊前可以單獨出清，正式上線前會和店家確認。</p>
         <h3 class="subhead">預算內的完整餐盒</h3>
         <ul class="rows" id="boxes"></ul>
+        </div>
       </div>
     </section>
 
     <!-- 我的營養 -->
     <section class="view" id="view-nutri" aria-labelledby="h-nutri">
-      <div class="narrow">
+      <div class="shell">
+        <aside class="rail">
         <h2 id="h-nutri">今天還差多少營養</h2>
         <p class="lede">用國健署 DRIs 第八版算出你的每日建議量，再記下今天吃了什麼，看看還缺什麼。數值為估算，僅供參考，不是醫療建議。</p>
         <form class="profile" id="profile">
@@ -152,32 +157,40 @@
           <ul class="results" id="foodResults" aria-label="搜尋結果"></ul>
           <ul class="eaten" id="eaten"></ul>
         </div>
-
+        </aside>
+        <div class="main">
         <h3 class="subhead">和每日建議量比較</h3>
         <div class="bars" id="bars"></div>
         <h3 class="subhead">下一餐推薦</h3>
         <p class="hint" id="nextHint"></p>
         <ul class="rows" id="nextMeal"></ul>
+        </div>
       </div>
     </section>
 
     <!-- 剩食料理 -->
     <section class="view" id="view-recipe" aria-labelledby="h-recipe">
-      <div class="narrow wide">
+      <div class="shell">
+        <aside class="rail">
         <h2 id="h-recipe">買回來的剩食怎麼煮</h2>
         <p class="lede">選你手邊的設備和食材，找 15 分鐘內做得完的料理。營養以食藥署資料計算。</p>
         <div class="recipe-filters">
           <div class="filter-line"><span id="lbl-equip">我有</span><div class="chips" role="group" aria-labelledby="lbl-equip" id="equipChips"></div></div>
           <div class="filter-line"><span id="lbl-ing">手邊食材</span><div class="chips" role="group" aria-labelledby="lbl-ing" id="ingChips"></div></div>
         </div>
+        <p class="hint rail-note">這些是示範食譜，尚待具營養背景的同學審閱。</p>
+        </aside>
+        <div class="main">
+        <h3 class="subhead">符合的食譜<small id="recipeCount"></small></h3>
         <ul class="recipes" id="recipes"></ul>
-        <p class="hint">這些是示範食譜，尚待具營養背景的同學審閱。</p>
+        </div>
       </div>
     </section>
 
     <!-- 資料來源 -->
     <section class="view" id="view-data" aria-labelledby="h-data">
-      <div class="narrow">
+      <div class="shell">
+        <aside class="rail">
         <h2 id="h-data">這些數字從哪裡來</h2>
         <p class="lede">RescuEat 不用自創的「健康分數」。熱量、營養、建議攝取量都查自官方資料或店家標示，查不到而用估算的品項會在畫面上註明。</p>
         <div class="truth">
@@ -201,10 +214,18 @@
             </ul>
           </section>
         </div>
-        <h3 class="subhead">食藥署資料清理結果</h3>
-        <div class="stat-grid" id="statGrid"></div>
-        <h3 class="subhead">清理後的食材分類</h3>
-        <div class="hbars" id="groupBars"></div>
+        </aside>
+        <div class="main">
+        <div class="pair">
+          <section>
+            <h3 class="subhead">食藥署資料清理結果</h3>
+            <div class="stat-grid" id="statGrid"></div>
+          </section>
+          <section>
+            <h3 class="subhead">清理後的食材分類</h3>
+            <div class="hbars" id="groupBars"></div>
+          </section>
+        </div>
         <h3 class="subhead">每 100 大卡蛋白質最多的蛋白質類食材</h3>
         <ol class="rank" id="topProtein"></ol>
         <h3 class="subhead">資料來源</h3>
@@ -221,6 +242,7 @@
               <tr><td>六大類每日份數</td><td><a href="https://web.ntnu.edu.tw/~499002011/evaluation.html" target="_blank" rel="noopener">台師大網域上的成人每日均衡飲食建議量頁面</a></td><td>只用在後端分析，介面未使用</td></tr>
             </tbody>
           </table>
+        </div>
         </div>
       </div>
     </section>
