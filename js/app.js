@@ -67,35 +67,18 @@
   }
 
   // ---------- 分頁 ----------
-  const PAGES = { map: "剩食地圖", combo: "組一餐", nutri: "我的營養", recipe: "剩食料理", data: "資料來源" };
-  function setPageHead(name) {
-    $("#crumbNow").textContent = PAGES[name];
-    document.title = `${PAGES[name]}｜RescuEat 政大惜食地圖`;
-  }
-  // 字級大小（政府網站常見的小／中／大）
-  const FS = { s: "15px", m: "16px", l: "18px" };
-  function setFont(k) {
-    document.documentElement.style.fontSize = FS[k];
-    $$("[data-fs]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.fs === k));
-    store.set("re_fs", k);
-    if (map) setTimeout(() => map.invalidateSize(), 0);
-  }
-  $$("[data-fs]").forEach((b) => b.addEventListener("click", () => setFont(b.dataset.fs)));
-  $$("[data-view-link]").forEach((b) => b.addEventListener("click", () => showView(b.dataset.viewLink)));
   function showView(name) {
-    setPageHead(name);
     $$(".tab").forEach((t) => { const on = t.dataset.view === name; t.classList.toggle("is-active", on); on ? t.setAttribute("aria-current", "page") : t.removeAttribute("aria-current"); });
     window.scrollTo({ top: 0 });
     $$(".view").forEach((v) => v.classList.toggle("is-active", v.id === `view-${name}`));
     if (name === "map" && map) setTimeout(() => map.invalidateSize(), 0);
     if (name === "combo") renderCombos();
     if (name === "nutri") renderNutrition();
-    try { history.replaceState(null, "", name === "map" ? location.pathname : `#${name}`); } catch { /* 部分瀏覽器的 file:// 不允許 */ }
+    try { history.replaceState(null, "", `#${name}`); } catch { /* 部分瀏覽器的 file:// 不允許 */ }
   }
   $$(".tab").forEach((t) => t.addEventListener("click", () => showView(t.dataset.view)));
-  // 只有分頁名稱才切換；#C、#sitemap 這類頁內錨點留在目前的分頁
-  const viewFromHash = () => { const v = location.hash.slice(1); return PAGES[v] ? v : null; };
-  window.addEventListener("hashchange", () => { const v = viewFromHash(); if (v) showView(v); });
+  const viewFromHash = () => { const v = location.hash.slice(1); return $(`#view-${CSS.escape(v || "map")}`) ? v || "map" : "map"; };
+  window.addEventListener("hashchange", () => showView(viewFromHash()));
 
   // ---------- 品項 ----------
   const walkMin = (m) => Math.max(1, Math.ceil(m / 75));          // 步行約 75 公尺／分鐘
@@ -595,12 +578,10 @@
   (async function start() {
     await loadRemote();
     applyLocalReservations();
-    setFont(store.get("re_fs", "m"));
     initMap();
     renderAll();
     renderRecipes();
     renderData();
-    const first = viewFromHash();
-    if (first) showView(first); else setPageHead("map");
+    if (viewFromHash() !== "map") showView(viewFromHash());
   })();
 })();
