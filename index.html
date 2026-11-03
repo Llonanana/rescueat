@@ -8,12 +8,26 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="icon" href="img/logo.svg" type="image/svg+xml">
-  <meta name="theme-color" content="#FFFFFF">
+  <meta name="theme-color" content="#1F4E37">
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@900&family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <a class="skip" href="#C">跳到主要內容</a>
+  <div class="utility">
+    <a class="acc" accesskey="U" href="#U" id="U" title="上方功能區塊">:::</a>
+    <span class="u-org">國立政治大學 AI 實務專案｜乞丐超人的勝利</span>
+    <ul class="u-links">
+      <li><a href="#sitemap">網站導覽</a></li>
+      <li class="fontsize" role="group" aria-label="字級大小">
+        <span aria-hidden="true">字級</span>
+        <button type="button" data-fs="s" aria-label="小字級" aria-pressed="false">小</button>
+        <button type="button" data-fs="m" aria-label="中字級" aria-pressed="true">中</button>
+        <button type="button" data-fs="l" aria-label="大字級" aria-pressed="false">大</button>
+      </li>
+    </ul>
+  </div>
   <header class="topbar">
     <a class="brand" href="./" aria-label="RescuEat 首頁">
       <img src="img/logo.svg" alt="" width="48" height="48">
@@ -39,12 +53,14 @@
     </nav>
   </header>
 
-  <div class="demo-note" role="note">
-    <span id="demoText">示範版本：品項與原價取自楽坡、GET POWER 公開的菜單；惜食價、剩餘份數、取餐時間是示範值。</span>
+  <div class="pagebar">
+    <nav class="crumbs" aria-label="目前位置"><a href="./">首頁</a><span aria-hidden="true">›</span><span id="crumbNow">剩食地圖</span></nav>
+    <p class="demo-note" id="demoText" role="note">示範版本：品項與原價取自楽坡、GET POWER 公開的菜單；惜食價、剩餘份數、取餐時間是示範值。</p>
     <button class="linklike" id="resetDemo">重設示範資料</button>
   </div>
 
-  <main>
+  <main id="main">
+    <a class="acc" accesskey="C" href="#C" id="C" title="中央內容區塊">:::</a>
     <!-- 剩食地圖 -->
     <section class="view is-active" id="view-map" aria-labelledby="h-map">
       <h2 id="h-map" class="sr-only">剩食地圖</h2>
@@ -247,6 +263,42 @@
       </div>
     </section>
   </main>
+
+  <footer class="site-footer" id="sitemap">
+    <a class="acc" accesskey="Z" href="#Z" id="Z" title="下方資訊區塊">:::</a>
+    <div class="foot-grid">
+      <section>
+        <h3>網站導覽</h3>
+        <ul>
+          <li><button type="button" data-view-link="map">剩食地圖</button></li>
+          <li><button type="button" data-view-link="combo">組一餐</button></li>
+          <li><button type="button" data-view-link="nutri">我的營養</button></li>
+          <li><button type="button" data-view-link="recipe">剩食料理</button></li>
+          <li><button type="button" data-view-link="data">資料來源</button></li>
+        </ul>
+      </section>
+      <section>
+        <h3>主要資料來源</h3>
+        <ul>
+          <li><a href="https://data.gov.tw/dataset/8543" target="_blank" rel="noopener">衛生福利部食品藥物管理署 食品營養成分資料集</a></li>
+          <li>衛生福利部國民健康署 國人膳食營養素參考攝取量（第八版）</li>
+          <li><a href="https://maps.nlsc.gov.tw/" target="_blank" rel="noopener">內政部國土測繪中心 臺灣通用電子地圖</a></li>
+        </ul>
+      </section>
+      <section>
+        <h3>使用說明</h3>
+        <ul>
+          <li>隱私：身高、體重、飲食紀錄只存在你的瀏覽器，不會上傳。示範版的預訂也只存在這台裝置。</li>
+          <li>營養：標示「估算值」者依食藥署資料與假設份量推算。所有數值僅供參考，不是醫療或營養諮詢。</li>
+          <li>惜食品項：目前的惜食價與份數是示範值。正式上線後，取餐前請確認保存方式與取餐時間。</li>
+        </ul>
+      </section>
+    </div>
+    <div class="foot-bottom">
+      <p>本網站為國立政治大學學生專案作品「RescuEat 政大惜食地圖」，<b>非政府機關網站</b>。</p>
+      <p>資料更新日期：2026 年 11 月 3 日</p>
+    </div>
+  </footer>
 
   <dialog id="reserveDialog" aria-labelledby="dlgTitle">
     <form method="dialog" class="dlg">
