@@ -7,7 +7,8 @@
   <meta name="description" content="政大周邊打烊前剩食地圖：找剩食、跨店組一餐、看營養缺口、用宿舍設備做剩食料理。">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="icon" href="img/logo.svg" type="image/svg+xml">
+  <link rel="icon" href="img/favicon.png" type="image/png">
+  <link rel="apple-touch-icon" href="img/logo.png">
   <meta name="theme-color" content="#FFFFFF">
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@900&family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -16,7 +17,7 @@
 <body>
   <header class="topbar">
     <a class="brand" href="./" aria-label="RescuEat 首頁">
-      <img src="img/logo.svg" alt="" width="48" height="48">
+      <img src="img/logo.png" alt="" width="48" height="48">
       <span class="wordmark"><span class="w-g">Rescu</span><span class="w-o">Eat</span></span>
     </a>
     <p class="slogan"><b>Rescue Food, Rescue Your Wallet!</b><span>政大周邊惜食地圖</span></p>
@@ -40,7 +41,7 @@
   </header>
 
   <div class="demo-note" role="note">
-    <span id="demoText">示範版本：品項與原價取自楽坡、GET POWER 公開的菜單；惜食價、剩餘份數、取餐時間是示範值。</span>
+    <span id="demoText">示範版本：品項與原價取自各店公開的菜單；惜食價、剩餘份數、取餐時間是示範值。</span>
     <button class="linklike" id="resetDemo">重設示範資料</button>
   </div>
 
@@ -56,7 +57,7 @@
           <details class="explain">
             <summary>什麼是惜食價？</summary>
             <p>店家打烊前，把當天沒賣完、但仍新鮮可以吃的餐點打折出清，這個價格就是<b>惜食價</b>。你用比較便宜的價格吃到一般餐點，店家少丟一份食物、多一筆收入。</p>
-            <p>預訂後會拿到 4 位數取餐碼，在標示的時間前到店出示、付款取餐。這個示範版本以原價 7 折計算，正式上線後由店家自己定價。</p>
+            <p>預訂後會拿到 4 位數取餐碼，在標示的時間前到店出示、付款取餐。這個示範版本以原價 8 折計算，正式上線後由店家自己定價。</p>
           </details>
           <div class="filters">
             <div class="chips" role="group" aria-label="食物類別">
@@ -79,9 +80,11 @@
           </div>
           <p class="shop-filter" id="shopFilter" hidden></p>
           <ul class="groups" id="listings"></ul>
+          <div id="pendingWrap">
           <h3 class="subhead">洽談中的店家</h3>
           <p class="hint">這些店還沒上架惜食。點店名可以在地圖上看位置。</p>
           <ul class="pending-shops" id="pendingShops"></ul>
+          </div>
         </div>
       </div>
     </section>
@@ -96,7 +99,7 @@
           <label for="budget">這餐預算</label>
           <div class="budget-input"><span>$</span><input id="budget" type="number" min="20" max="500" step="5" value="100" inputmode="numeric"></div>
           <div class="chips" role="group" aria-label="常用預算" id="budgetChips">
-            <button class="chip" data-budget="70">$70</button>
+            <button class="chip" data-budget="80">$80</button>
             <button class="chip is-on" data-budget="100">$100</button>
             <button class="chip" data-budget="150">$150</button>
           </div>
@@ -155,12 +158,15 @@
             <button class="chip" data-quick="鮮奶">鮮奶</button>
           </div>
           <ul class="results" id="foodResults" aria-label="搜尋結果"></ul>
+          <div class="meals" id="mealQuick" role="group" aria-labelledby="mealsHead"></div>
+          <div class="meals" id="menuQuick" role="group" aria-labelledby="menuHead"></div>
           <ul class="eaten" id="eaten"></ul>
         </div>
         </aside>
         <div class="main">
         <h3 class="subhead">和每日建議量比較</h3>
         <div class="bars" id="bars"></div>
+        <p class="hint" id="menuNote" hidden>店家菜單只標示熱量與蛋白質，記錄的店家品項不會計入其他營養素。</p>
         <h3 class="subhead">下一餐推薦</h3>
         <p class="hint" id="nextHint"></p>
         <ul class="rows" id="nextMeal"></ul>
@@ -181,7 +187,17 @@
         <p class="hint rail-note">這些是示範食譜，尚待具營養背景的同學審閱。</p>
         </aside>
         <div class="main">
-        <h3 class="subhead">符合的食譜<small id="recipeCount"></small></h3>
+        <div class="subhead recipe-bar">
+          <h3>符合的食譜 <small id="recipeCount"></small></h3>
+          <label class="sort" for="recipeSort">排序
+            <select id="recipeSort">
+              <option value="match">手邊食材最多</option>
+              <option value="min">時間短</option>
+              <option value="kcal">熱量低</option>
+              <option value="protein">蛋白質高</option>
+            </select>
+          </label>
+        </div>
         <ul class="recipes" id="recipes"></ul>
         </div>
       </div>
@@ -207,7 +223,7 @@
           <section class="truth-demo">
             <h3>示範用的假設值</h3>
             <ul>
-              <li>惜食價（原價 7 折，取整到 5 元）</li>
+              <li>惜食價（原價 8 折，四捨五入到整數元）</li>
               <li>剩餘份數</li>
               <li>取餐截止時間</li>
               <li>預訂與取餐碼（只存在這台裝置）</li>
@@ -237,8 +253,11 @@
               <tr><td>每日建議攝取量</td><td>國健署「國人膳食營養素參考攝取量」第八版總表（民國 111 年）</td><td>我的營養</td></tr>
               <tr><td>楽坡品項、原價、營養標示</td><td><a href="https://bonbox.tw/menu/" target="_blank" rel="noopener">楽坡 BonBox 官網菜單</a>（2026/07/13 更新）</td><td>剩食地圖、組一餐</td></tr>
               <tr><td>GET POWER 品項、原價、營養標示</td><td><a href="https://www.foodpanda.com.tw/restaurant/b933/get-power-gei-li-he-zi-zheng-da-dian-b933" target="_blank" rel="noopener">GET POWER 政大店 foodpanda 菜單</a>（2026/11/01 查詢）</td><td>剩食地圖、組一餐</td></tr>
+              <tr><td>蛋白盒子品項、原價、營養標示</td><td><a href="https://order.ocard.co/theproteinbox/mWgWOm" target="_blank" rel="noopener">蛋白盒子台北木柵店 官方線上點餐</a>（門市價）、<a href="https://theproteinbox.com.tw/menu" target="_blank" rel="noopener">官網最新菜單</a>（熱量、蛋白質），2026/11/09 查詢</td><td>剩食地圖、組一餐</td></tr>
+              <tr><td>雞肉本家品項、原價</td><td><a href="https://shop.ichefpos.com/store/4OJ-oIjT/ordering" target="_blank" rel="noopener">雞肉本家 官方 iCHEF 線上菜單</a>（門市價，頁面未標分店），2026/11/09 查詢；店家未公布營養標示，熱量與蛋白質以食藥署資料和本專案假設的份量估算</td><td>剩食地圖、組一餐</td></tr>
               <tr><td>店家座標與營業時間</td><td>Google 地圖（2026/11/01 查詢）</td><td>剩食地圖</td></tr>
               <tr><td>地圖底圖</td><td><a href="https://maps.nlsc.gov.tw/" target="_blank" rel="noopener">內政部國土測繪中心 臺灣通用電子地圖</a>，可切換 © OpenStreetMap contributors</td><td>剩食地圖</td></tr>
+              <tr><td>常用餐點的組成與份量</td><td>專案依常見份量自訂，每樣食材人工對應食藥署編號（<code>meal_mapping.csv</code>）</td><td>我的營養</td></tr>
               <tr><td>六大類每日份數</td><td><a href="https://web.ntnu.edu.tw/~499002011/evaluation.html" target="_blank" rel="noopener">台師大網域上的成人每日均衡飲食建議量頁面</a></td><td>只用在後端分析，介面未使用</td></tr>
             </tbody>
           </table>
@@ -268,6 +287,7 @@
   <script src="data/foods.js"></script>
   <script src="data/dris.js"></script>
   <script src="data/recipes.js"></script>
+  <script src="data/meals.js"></script>
   <script src="data/stats.js"></script>
   <script src="js/app.js"></script>
 </body>

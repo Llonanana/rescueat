@@ -40,7 +40,7 @@ button { font: inherit; }
   padding: 0 var(--g);
 }
 .brand { display: flex; align-items: center; gap: 6px; text-decoration: none; }
-.brand img { width: 36px; height: 36px; }
+.brand img { width: 46px; height: 46px; }
 .wordmark { font: 900 1.45rem/1 var(--logo); letter-spacing: -.01em; }
 .w-g { color: var(--green); }
 .w-o { color: #E97F1C; }
@@ -201,6 +201,14 @@ select:focus, input:focus { border-color: var(--green); outline: 1px solid var(-
 .shop-pin.live::after { content: ""; position: absolute; left: 8px; bottom: -7px; border: 6px solid transparent; border-top-color: var(--orange); border-bottom: 0; border-top-width: 7px; }
 .shop-pin.live.is-on .lbl { background: var(--ink); }
 .shop-pin.live.is-on::after { border-top-color: var(--ink); }
+/* 標籤展開方向：預設右上；左上、左下、右下讓相鄰的店錯開 */
+.shop-pin.live.pin-nw { transform: translate(calc(-100% + 14px), calc(-100% - 7px)); }
+.shop-pin.live.pin-nw::after { left: auto; right: 8px; }
+.shop-pin.live.pin-sw, .shop-pin.live.pin-se { transform: translate(-14px, 7px); }
+.shop-pin.live.pin-sw { transform: translate(calc(-100% + 14px), 7px); }
+.shop-pin.live.pin-sw::after, .shop-pin.live.pin-se::after { bottom: auto; top: -7px; border-top: 0; border-bottom: 7px solid var(--orange); }
+.shop-pin.live.pin-sw::after { left: auto; right: 8px; }
+.shop-pin.live.is-on.pin-sw::after, .shop-pin.live.is-on.pin-se::after { border-bottom-color: var(--ink); }
 .shop-pin:not(.live) { display: flex; align-items: center; gap: 4px; transform: translate(-5px, -50%); }
 .shop-pin .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: #fff; border: 2px solid var(--ink-2); }
 .shop-pin:not(.live) .lbl { font-size: 12px; color: var(--ink); text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff, 0 0 3px #fff; }
@@ -209,6 +217,12 @@ select:focus, input:focus { border-color: var(--green); outline: 1px solid var(-
 .shop-pin.is-on .dot { background: var(--ink); }
 .shop-pin:not(.live).is-on .lbl b { font-weight: 700; }
 .zoom-lo .shop-pin:not(.live) .lbl { display: none; }
+.zoom-far .shop-pin.live .lbl span { display: none; }
+.zoom-dot .shop-pin.live .lbl, .zoom-dot .gate-pin { display: none; }
+.zoom-dot .shop-pin.live, .zoom-dot .shop-pin.live.pin-nw, .zoom-dot .shop-pin.live.pin-sw, .zoom-dot .shop-pin.live.pin-se { transform: translate(-7px, -7px); }
+.zoom-dot .shop-pin.live::after, .zoom-dot .shop-pin.live.pin-nw::after, .zoom-dot .shop-pin.live.pin-sw::after, .zoom-dot .shop-pin.live.pin-se::after {
+  position: static; display: block; width: 14px; height: 14px; border: 2px solid #fff; border-radius: 50%; background: var(--orange); box-shadow: 0 1px 3px rgba(20, 30, 20, .35);
+}
 .gate-pin { position: absolute; transform: translate(-50%, -50%); background: var(--ink); color: #fff; font: 500 11px var(--font); padding: 1px 6px; border-radius: 2px; white-space: nowrap; }
 .leaflet-container { font-family: var(--font); }
 .leaflet-control-layers, .leaflet-bar { border-radius: 3px !important; }
@@ -236,7 +250,12 @@ select:focus, input:focus { border-color: var(--green); outline: 1px solid var(-
 .combo-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding-bottom: 8px; border-bottom: 1px dashed var(--line); }
 .combo-head h4 { font-size: .94rem; }
 .combo-head span { font: 600 .92rem var(--num); color: var(--muted); white-space: nowrap; }
-.lines { margin: 8px 0 0; }
+.stop { padding: 10px 0 2px; }
+.stop + .stop { border-top: 1px dashed var(--line); }
+.stop-head { display: flex; align-items: baseline; gap: 8px; margin: 0; font-size: .86rem; font-weight: 700; }
+.stop-head b { flex: none; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--ink); color: #fff; font: 700 .72rem/1 var(--num); transform: translateY(-1px); }
+.stop-head small { margin-left: auto; font-weight: 400; font-size: .74rem; color: var(--muted); white-space: nowrap; }
+.lines { margin: 4px 0 0; }
 .lines > div { display: flex; align-items: baseline; gap: 6px; padding: 3px 0; font-size: .9rem; }
 .lines dt { flex: none; width: 3.2em; font-size: .76rem; color: var(--muted); }
 .lines dd { margin: 0; }
@@ -269,9 +288,17 @@ select:focus, input:focus { border-color: var(--green); outline: 1px solid var(-
 .results small { color: var(--muted); }
 .results .official { display: block; font-size: .72rem; }
 .results .hint { padding: 8px 12px; margin: 0; }
-.eaten { list-style: none; padding: 0; margin: 10px 0 0; }
+.meals { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
+.meals-head { display: flex; justify-content: space-between; align-items: baseline; margin: 0 0 6px; font-size: .88rem; font-weight: 700; }
+.meals-head small { font-size: .74rem; font-weight: 400; color: var(--muted); }
+.meal-line { display: grid; grid-template-columns: 5.8em minmax(0, 1fr); gap: 8px; padding: 3px 0; font-size: .84rem; line-height: 1.6; }
+.meal-line > span { color: var(--muted); font-size: .78rem; padding-top: 1px; }
+.meal-line > div { display: flex; flex-wrap: wrap; gap: 0 12px; }
+.meal-line .linklike { font-size: inherit; text-align: left; }
+.eaten { list-style: none; padding: 0; margin: 14px 0 0; }
+.eaten li small { display: block; font-size: .74rem; color: var(--muted); line-height: 1.5; }
 .eaten li:not(.empty) { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line-2); font-size: .9rem; }
-.eaten button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: .8rem; text-decoration: underline; text-underline-offset: 3px; }
+.eaten button { flex: none; white-space: nowrap; background: none; border: 0; color: var(--muted); cursor: pointer; font-size: .8rem; text-decoration: underline; text-underline-offset: 3px; }
 .eaten button:hover { color: var(--red); }
 .eaten .empty { font-size: .88rem; padding: 4px 0; }
 .bar-row { display: grid; grid-template-columns: 92px 1fr 158px; gap: 16px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line-2); font-size: .9rem; }
@@ -287,21 +314,45 @@ select:focus, input:focus { border-color: var(--green); outline: 1px solid var(-
 .recipe-filters { display: grid; gap: 16px; }
 .filter-line { display: grid; gap: 6px; }
 .filter-line > span { font-size: .8rem; color: var(--muted); }
-.recipes { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 48px; }
-.recipe { padding: 20px 0; border-bottom: 1px solid var(--line); }
-.recipe-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-.recipe h4 { font-size: 1.05rem; }
-.have-count { flex: none; font-size: .76rem; font-weight: 500; color: var(--green); }
+/* 標題列：左邊道數，右邊排序 */
+.recipe-bar { align-items: center; }
+.recipe-bar h3 { font-size: inherit; }
+.recipe-bar h3 small { font: 500 .95rem var(--num); color: var(--muted); margin-left: 4px; }
+.sort { display: flex; align-items: center; gap: 6px; font-size: .8rem; font-weight: 400; color: var(--muted); }
+.sort select { padding: 2px 24px 2px 8px; font-size: .84rem; }
+/* 食譜卡片：重點數字對齊在同一高度，做法收在最下面 */
+.recipes { list-style: none; padding: 0; margin: 16px 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; align-items: start; }   /* 展開做法時不會把同列卡片撐高 */
+.recipes .empty { grid-column: 1 / -1; }
+/* 設備顏色：電鍋用經典紅色電鍋的紅，其餘避開代表價格的橘色 */
+.eq-mw { --eq: #2A5D8F; }     /* 微波爐 藍 */
+.eq-rc { --eq: #A8432A; }     /* 電鍋 紅 */
+.eq-kt { --eq: #1F7272; }     /* 快煮鍋 青綠 */
+.eq-cold { --eq: #55701A; }   /* 免開火 橄欖綠 */
+.recipe { display: flex; flex-direction: column; background: var(--paper); border: 1px solid var(--line); border-top: 3px solid var(--eq, var(--line)); border-radius: 3px; padding: 12px 16px 12px; }
+.recipe-top { display: flex; align-items: center; gap: 6px; min-height: 22px; }
+.equip { font-size: .74rem; font-weight: 700; color: var(--eq); background: color-mix(in srgb, var(--eq) 10%, #fff); border-radius: 2px; padding: 0 7px; line-height: 1.7; }
+#equipChips .chip::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--eq); margin-right: 6px; vertical-align: 1px; }
+#equipChips .chip.is-on { background: var(--eq); border-color: var(--eq); }
+#equipChips .chip.is-on::before { background: #fff; }
+.have-count { margin-left: auto; font-size: .74rem; font-weight: 700; color: var(--green); }
 .have-count.none { color: var(--muted); font-weight: 400; }
-.recipe .meta { display: flex; flex-wrap: wrap; gap: 0 10px; color: var(--muted); font-size: .8rem; margin: 2px 0 8px; }
-.recipe .meta b { font-weight: 500; color: var(--ink-2); }
-.recipe ul { list-style: none; margin: 0 0 8px; padding: 0; font-size: .88rem; color: var(--ink-2); }
-.recipe ul li { display: inline; }
-.recipe ul li:not(:last-child)::after { content: "、"; color: var(--muted); font-weight: 400; }
-.recipe ul small { color: var(--muted); margin-left: 3px; font-weight: 400; }
-.recipe ul .have { color: var(--green); font-weight: 700; }
-.recipe ol { margin: 0; padding-left: 1.3em; font-size: .88rem; }
-.recipe ol li { margin: 1px 0; }
+.recipe h4 { font-size: 1.06rem; line-height: 1.4; margin: 6px 0 6px; text-wrap: balance; }
+.recipe-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0 0 10px; border-block: 1px solid var(--line-2); }
+.recipe-stats div { padding: 6px 0; }
+.recipe-stats div + div { padding-left: 10px; border-left: 1px solid var(--line-2); }
+.recipe-stats dt { font-size: .7rem; color: var(--muted); }
+.recipe-stats dd { margin: 0; font: 700 1.35rem/1.15 var(--num); font-variant-numeric: tabular-nums; }
+.recipe-stats dd small { font: 400 .72rem var(--font); color: var(--muted); margin-left: 3px; }
+/* 食材在數字上方；預留三行高度，同一列卡片的數字列才會切齊 */
+.recipe-ings { list-style: none; margin: 0 0 10px; padding: 0; font-size: .84rem; line-height: 1.6; color: var(--ink-2); min-height: 4.8em; }
+.recipe-ings li { display: inline; }
+.recipe-ings li:not(:last-child)::after { content: "、"; color: var(--muted); font-weight: 400; }
+.recipe-ings small { color: var(--muted); margin-left: 3px; font-weight: 400; }
+.recipe-ings .have { color: var(--green); font-weight: 700; }
+.recipe-steps { padding-top: 8px; border-top: 1px dashed var(--line); font-size: .86rem; }
+.recipe-steps summary { cursor: pointer; color: var(--green); font-size: .82rem; width: fit-content; }
+.recipe-steps ol { margin: 8px 0 2px; padding-left: 1.3em; }
+.recipe-steps ol li { margin: 2px 0; }
 
 /* ================= 資料來源 ================= */
 .truth { display: grid; gap: 20px; }
@@ -363,7 +414,7 @@ dialog::backdrop { background: rgba(27, 42, 34, .5); }
   :root { --g: 16px; }
   body { padding-bottom: calc(58px + env(safe-area-inset-bottom)); }
   .topbar { height: 52px; }
-  .brand img { width: 32px; height: 32px; }
+  .brand img { width: 40px; height: 40px; }
   .wordmark { font-size: 1.28rem; }
   .slogan { display: block; margin-left: auto; padding-left: 0; border-left: 0; text-align: right; }
   .slogan b { display: none; }
@@ -390,12 +441,15 @@ dialog::backdrop { background: rgba(27, 42, 34, .5); }
   .filters .chips::-webkit-scrollbar { display: none; }
   .chip { flex: none; }
   .toast { bottom: calc(68px + env(safe-area-inset-bottom)); }
-  .combos, .recipes, .pair { grid-template-columns: minmax(0, 1fr); }
+  .combos, .pair { grid-template-columns: minmax(0, 1fr); }
   .combo:only-child { max-width: none; }
   .budget { max-width: none; }
   .pair { gap: 36px; }
   .rank { columns: 1; }
   .bar-row { grid-template-columns: 68px 1fr 124px; gap: 8px; font-size: .84rem; }
+}
+@media (max-width: 560px) {
+  .recipe-ings { min-height: 0; }   /* 手機一欄，不需要對齊 */
 }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; scroll-behavior: auto !important; }

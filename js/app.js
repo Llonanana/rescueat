@@ -12,6 +12,7 @@
   const DRIS = window.RE_DRIS;
   const RECIPES = window.RE_RECIPES;
   const STATS = window.RE_STATS;
+  const MEALS = window.RE_MEALS || [];
   const shopById = Object.fromEntries(SHOPS.map((s) => [s.id, s]));
   const foodById = Object.fromEntries(FOODS.map((f) => [f.id, f]));
   const CATS = ["主食", "蛋白質", "蔬菜"];
@@ -144,19 +145,24 @@
     }
     refreshMarkers();
     // 一開始把政大正門附近 600 公尺內的店家都框進畫面（手機、電腦都適用）
-    const near = SHOPS.filter((x) => distOf(x.id) < 600).map((x) => [x.lat, x.lng]);
+    const near = SHOPS.filter((x) => distOf(x.id) < 1500).map((x) => [x.lat, x.lng]);
     if (map.getSize().x < 600) {
       // 手機：畫面只框有剩食的店與正門，右邊多留空間給店名標籤
-      const live = SHOPS.filter((x) => liveOf(x.id).length).map((x) => [x.lat, x.lng]);
-      map.fitBounds(L.latLngBounds([[GATE.lat, GATE.lng], ...live]), { paddingTopLeft: [28, 56], paddingBottomRight: [64, 56], maxZoom: 18 });
+      // 手機只框正門附近的店，遠一點的店拉遠或點清單店名就看得到
+      const live = SHOPS.filter((x) => liveOf(x.id).length && distOf(x.id) < 400).map((x) => [x.lat, x.lng]);
+      map.fitBounds(L.latLngBounds([[GATE.lat, GATE.lng], ...live]), { paddingTopLeft: [130, 60], paddingBottomRight: [70, 60], maxZoom: 18 });
     } else {
       map.fitBounds(L.latLngBounds([[GATE.lat, GATE.lng], ...near]), { paddingTopLeft: [30, 50], paddingBottomRight: [120, 40], maxZoom: 18 });
     }
     // 拉遠時，洽談中的店縮成小圓點，避免標籤疊在一起
-    const zoomClass = () => map.getContainer().classList.toggle("zoom-lo", map.getZoom() < 18);
+    const zoomClass = () => {
+      map.getContainer().classList.toggle("zoom-lo", map.getZoom() < 18);
+      map.getContainer().classList.toggle("zoom-far", map.getZoom() < 17);   // 再拉遠時標籤只留店名
+      map.getContainer().classList.toggle("zoom-dot", map.getZoom() < 16);   // 更遠時只留圓點，避免互相蓋住
+    };
     map.on("zoomend", zoomClass); zoomClass();
   }
-  function shortName(s) { return s.name.replace(/ 政大店| 給力盒子/g, "").replace("傳統甜點麵包店", ""); }
+  function shortName(s) { return s.short || s.name.replace(/ 政大店| 給力盒子/g, ""); }
   // 標示「起」價時以完整餐盒為準，避免半顆蛋這類加購品讓價格看起來失真
   function fromLabel(list) {
     const boxes = list.filter((x) => x.cat === "完整餐盒");
@@ -169,7 +175,7 @@
       const on = filt.shop === s.id ? " is-on" : "";
       const n = live.reduce((t, x) => t + x.qty, 0);
       const html = live.length
-        ? `<span class="shop-pin live${on}"><span class="lbl"><b>${esc(shortName(s))}</b><span>${n} 份，${fromLabel(live)}</span></span></span>`
+        ? `<span class="shop-pin live pin-${s.pin || "ne"}${on}"><span class="lbl"><b>${esc(shortName(s))}</b><span>${n} 份，${fromLabel(live)}</span></span></span>`
         : `<span class="shop-pin${on}"><span class="dot"></span><span class="lbl"><b>${esc(shortName(s))}</b><span>洽談中</span></span></span>`;
       markers[s.id].setIcon(L.divIcon({ className: "", html, iconSize: null, iconAnchor: [0, 0] }));
       markers[s.id].setZIndexOffset(live.length ? 1000 : 0);
@@ -221,7 +227,7 @@
       return `<li>
         <b class="order-code" title="到店出示取餐碼">${esc(r.code)}</b>
         <div class="order-info">
-          <span>${its.map((x) => esc(x.name)).join("、")}</span>
+          <span>${[...new Set(its.map((x) => x.shop))].map((sid) => `${esc(shortName(shopById[sid]))}：${its.filter((x) => x.shop === sid).map((x) => esc(x.name)).join("、")}`).join("；")}</span>
           <small>$${its.reduce((t, x) => t + x.deal, 0)}，${esc(until)} 前到店付款取餐</small>
         </div>
         ${CFG.APPS_SCRIPT_URL ? "" : `<button class="linklike" data-cancel="${i}">取消</button>`}
@@ -256,6 +262,7 @@
     }
     $("#clearShop")?.addEventListener("click", () => { filt.shop = null; renderListings(); });
     const pending = SHOPS.filter((s) => !items.some((x) => x.shop === s.id));
+    $("#pendingWrap").hidden = !pending.length;
     $("#pendingShops").innerHTML = pending.map((s) => `<li><button class="linklike" data-focus-shop="${s.id}">${esc(s.name)}</button><span class="meta">${esc(s.type)}，步行 ${walkMin(distOf(s.id))} 分鐘</span></li>`).join("");
     refreshMarkers();
   }
@@ -307,6 +314,7 @@
     if (dlg.returnValue !== "confirm") return;
     const code = String(Math.floor(1000 + Math.random() * 9000));
     if (CFG.APPS_SCRIPT_URL) {
+      toast("預訂中…");
       try {
         const res = await fetch(CFG.APPS_SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "reserve", itemIds: pendingIds, code }) });
         const data = await res.json();
@@ -361,16 +369,23 @@
       const parts = [c.s, c.p, c.v];
       const kcal = parts.reduce((t, x) => t + (x.kcal || 0), 0);
       const prot = parts.reduce((t, x) => t + (x.protein || 0), 0);
-      const est = parts.some((x) => x.nsrc !== "official");
+      const est = parts.some((x) => x.kcal != null && x.nsrc !== "official");
+      const unknown = parts.some((x) => x.kcal == null);
       const orig = parts.reduce((t, x) => t + x.price, 0);
       const shops = c.route.order.map((id) => shopById[id].name);
       return `<li class="combo">
         <div class="combo-head"><h4>${shops.length > 1 ? `跨 ${shops.length} 家店` : esc(shops[0])}</h4><span>No.${i + 1}</span></div>
-        <dl class="lines">
-          ${[["主食", c.s], ["蛋白質", c.p], ["蔬菜", c.v]].map(([k, x]) => `<div><dt>${k}</dt><dd>${esc(x.name)}</dd><span class="leader" aria-hidden="true"></span><dd class="amt">$${x.deal}</dd></div>`).join("")}
-        </dl>
+        ${c.route.order.map((sid, n) => {
+          // 依取餐順序分店列出：每家店要買什麼、從上一站走多遠
+          const s = shopById[sid], prev = n ? shopById[c.route.order[n - 1]] : GATE;
+          const lines = [["主食", c.s], ["蛋白質", c.p], ["蔬菜", c.v]].filter(([, x]) => x.shop === sid);
+          return `<div class="stop">
+            <p class="stop-head">${c.route.order.length > 1 ? `<b>${n + 1}</b>` : ""}<span>${esc(s.name)}</span><small>${n ? "再走" : "從正門走"} ${distLabel(meters(prev, s))}</small></p>
+            <dl class="lines">${lines.map(([k, x]) => `<div><dt>${k}</dt><dd>${esc(x.name)}</dd><span class="leader" aria-hidden="true"></span><dd class="amt">$${x.deal}</dd></div>`).join("")}</dl>
+          </div>`;
+        }).join("")}
         <div class="combo-total"><span>合計</span><s aria-label="原價 ${orig} 元">$${orig}</s><b>$${c.total}</b></div>
-        <p class="meta">約 ${fmt(kcal)} 大卡，蛋白質 ${fmt(prot, 1)} g${parts.every((x) => !x.fried) ? "，非油炸" : ""}。${est ? `營養含${CFG.ESTIMATE_NOTE}。` : ""}<br>取餐路線：${shops.map(esc).join("、")}，從正門走約 ${distLabel(c.route.total)}。</p>
+        <p class="meta">約 ${fmt(kcal)} 大卡，蛋白質 ${fmt(prot, 1)} g${parts.every((x) => !x.fried) ? "，非油炸" : ""}。${est ? `營養含${CFG.ESTIMATE_NOTE}。` : ""}${unknown ? "部分品項店家未標示營養，只計有標示的品項。" : ""}<br>取餐路線：${shops.map(esc).join("、")}，從正門走約 ${distLabel(c.route.total)}。</p>
         <div class="combo-act">
           <button class="btn" data-reserve-combo="${parts.map((x) => x.id).join(",")}">預訂這組</button>
           <a class="btn ghost" href="${walkLink(c.route.order)}" target="_blank" rel="noopener">看取餐路線</a>
@@ -422,9 +437,14 @@
   }
   function eatenTotals() {
     const t = {};
-    for (const e of eaten) {
-      const f = foodById[e.id]; if (!f) continue;
-      for (const k of ["energy_kcal", "protein_g", "fiber_g", "calcium_mg", "iron_mg", "vitC_mg", "sodium_mg"]) t[k] = (t[k] || 0) + (f[k] || 0) * e.g / 100;
+    // 單一食材是 { id, g }；常用餐點把組成放在 parts 裡；店家菜單品項只有熱量與蛋白質
+    for (const e of eaten) if (e.menu) {
+      t.energy_kcal = (t.energy_kcal || 0) + (e.kcal || 0);
+      t.protein_g = (t.protein_g || 0) + (e.protein || 0);
+    }
+    for (const e of eaten) if (!e.menu) for (const p of e.parts || [e]) {
+      const f = foodById[p.id]; if (!f) continue;
+      for (const k of ["energy_kcal", "protein_g", "fiber_g", "calcium_mg", "iron_mg", "vitC_mg", "sodium_mg"]) t[k] = (t[k] || 0) + (f[k] || 0) * p.g / 100;
     }
     return t;
   }
@@ -434,10 +454,13 @@
     $("#energyNote").textContent = `每日熱量約 ${fmt(N.kcal)} 大卡：基礎代謝 ${fmt(N.bmr)} 大卡（依你的身高體重年齡）× 活動係數 ${PAL[p.activity]}。` +
       (N.tableKcal ? `DRIs 表同年齡同性別的參考值為 ${fmt(N.tableKcal)} 大卡。` : "");
     $("#eaten").innerHTML = eaten.length ? eaten.map((e, i) => {
+      if (e.menu) return `<li><span>${esc(e.name)}，${fmt(e.kcal)} 大卡<small>${esc(e.shop)}・${e.nsrc === "official" ? "店家標示" : CFG.ESTIMATE_NOTE}，只計熱量與蛋白質</small></span><button data-del="${i}" aria-label="刪除 ${esc(e.name)}">刪除</button></li>`;
+      if (e.parts) return `<li><span>${esc(e.meal)}，${fmt(kcalOf(e.parts))} 大卡<small>${e.parts.map((p) => `${esc(p.label)} ${p.g} g`).join("、")}</small></span><button data-del="${i}" aria-label="刪除 ${esc(e.meal)}">刪除</button></li>`;
       const f = foodById[e.id];
       return `<li><span>${esc(f ? friendly(f).main : e.id)} ${fmt(e.g)} g，${fmt((f?.energy_kcal || 0) * e.g / 100)} 大卡</span><button data-del="${i}" aria-label="刪除 ${esc(f?.n)}">刪除</button></li>`;
     }).join("") : `<li class="empty">還沒有紀錄。搜尋上方的食藥署資料庫，把今天吃的東西加進來。</li>`;
     const T = eatenTotals();
+    $("#menuNote").hidden = !eaten.some((e) => e.menu);
     $("#bars").innerHTML = N.targets.map((t) => {
       const got = T[t.key] || 0, pct = t.need ? got / t.need * 100 : 0;
       const over = t.upper && got > t.need;
@@ -468,6 +491,38 @@
   $("#eaten").addEventListener("click", (e) => {
     const b = e.target.closest("[data-del]"); if (!b) return;
     eaten.splice(+b.dataset.del, 1); store.set("re_eaten", eaten); renderNutrition();
+  });
+  // 常用餐點：點一下記錄一整份
+  const kcalOf = (parts) => parts.reduce((t, p) => t + (foodById[p.id]?.energy_kcal || 0) * p.g / 100, 0);
+  $("#mealQuick").innerHTML = `<p class="meals-head" id="mealsHead">常用餐點<small>點一下記錄一整份</small></p>` +
+    [...new Set(MEALS.map((m) => m.type))].map((type) => `<div class="meal-line"><span>${esc(type)}</span><div>${
+      MEALS.map((m, i) => [m, i]).filter(([m]) => m.type === type)
+        .map(([m, i]) => `<button class="linklike" data-meal="${i}" title="約 ${fmt(kcalOf(m.parts))} 大卡：${esc(m.parts.map((p) => `${p.label} ${p.g} g`).join("、"))}">${esc(m.name)}</button>`).join("")
+    }</div></div>`).join("");
+  // 店家菜單：地圖上列出的品項，依店家分組
+  const MENU = window.RE_LISTINGS.items.filter((x) => x.kcal != null);
+  $("#menuQuick").innerHTML = `<p class="meals-head" id="menuHead">店家菜單<small>依店家營養標示</small></p>` +
+    [...new Set(MENU.map((x) => x.shop))].map((sid) => `<div class="meal-line"><span>${esc(shortName(shopById[sid]))}</span><div>${
+      MENU.filter((x) => x.shop === sid).map((x) => `<button class="linklike" data-menu="${esc(x.id)}" title="${fmt(x.kcal)} 大卡，蛋白質 ${fmt(x.protein, 1)} g">${esc(x.name)}</button>`).join("")
+    }</div></div>`).join("") +
+    // 完全沒有營養標示的店家無法計算，只說明原因
+    [...new Set(window.RE_LISTINGS.items.map((x) => x.shop))].filter((sid) => !MENU.some((x) => x.shop === sid))
+      .map((sid) => `<div class="meal-line"><span>${esc(shortName(shopById[sid]))}</span><div class="hint">店家沒有公布營養標示，暫時無法記錄</div></div>`).join("");
+  $("#menuQuick").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-menu]"); if (!b) return;
+    const x = MENU.find((m) => m.id === b.dataset.menu);
+    eaten.push({ menu: x.id, name: x.name, shop: shopById[x.shop].name, kcal: x.kcal, protein: x.protein, nsrc: x.nsrc, d: today() });
+    store.set("re_eaten", eaten);
+    renderNutrition();
+    toast(`已記錄 ${x.name}，${fmt(x.kcal)} 大卡`);
+  });
+  $("#mealQuick").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-meal]"); if (!b) return;
+    const m = MEALS[+b.dataset.meal];
+    eaten.push({ meal: m.name, parts: m.parts.map((p) => ({ ...p })), d: today() });
+    store.set("re_eaten", eaten);
+    renderNutrition();
+    toast(`已記錄 ${m.name}，約 ${fmt(kcalOf(m.parts))} 大卡`);
   });
   // 食材搜尋（名稱與俗名）
   // 日常說法 → 食藥署樣品名稱
@@ -530,23 +585,38 @@
 
   // ---------- 剩食料理 ----------
   const EQUIP = ["微波爐", "電鍋", "快煮鍋", "免開火"];
-  const INGS = ["蛋", "番茄", "燕麥", "豆腐", "雞胸", "地瓜", "生菜", "麵條", "小白菜", "杏鮑菇", "吐司"];
+  const EQ_KEY = { 微波爐: "mw", 電鍋: "rc", 快煮鍋: "kt", 免開火: "cold" };   // 對應 CSS 的設備顏色
+  const INGS = ["白飯", "蛋", "雞胸", "雞腿", "獅子頭", "鮪魚", "豆腐", "番茄", "高麗菜", "青花菜", "小白菜", "地瓜", "南瓜", "燕麥", "麵", "吐司", "鮮奶", "優格", "香蕉", "生菜", "杏鮑菇"];
   const rSel = { equip: new Set(), ing: new Set() };
-  $("#equipChips").innerHTML = EQUIP.map((x) => `<button class="chip" data-equip="${x}" aria-pressed="false">${x}</button>`).join("");
+  $("#equipChips").innerHTML = EQUIP.map((x) => `<button class="chip eq-${EQ_KEY[x]}" data-equip="${x}" aria-pressed="false">${x}</button>`).join("");
   $("#ingChips").innerHTML = INGS.map((x) => `<button class="chip" data-ing="${x}" aria-pressed="false">${x}</button>`).join("");
   function toggle(set, v, btn) { set.has(v) ? set.delete(v) : set.add(v); btn.classList.toggle("is-on"); btn.setAttribute("aria-pressed", set.has(v)); renderRecipes(); }
   $("#equipChips").addEventListener("click", (e) => { const b = e.target.closest("[data-equip]"); if (b) toggle(rSel.equip, b.dataset.equip, b); });
   $("#ingChips").addEventListener("click", (e) => { const b = e.target.closest("[data-ing]"); if (b) toggle(rSel.ing, b.dataset.ing, b); });
+  $("#recipeSort").addEventListener("change", renderRecipes);
+  const RECIPE_SORT = {
+    match: (a, b) => b.match - a.match || a.r.min - b.r.min,
+    min: (a, b) => a.r.min - b.r.min || b.match - a.match,
+    kcal: (a, b) => a.r.kcal - b.r.kcal,
+    protein: (a, b) => b.r.protein - a.r.protein,
+  };
+  // 卡片只放判斷要不要做的資訊：設備、熱量、蛋白質、時間、食材；做法收在「看做法」裡
   function renderRecipes() {
-    let list = RECIPES.filter((r) => !rSel.equip.size || r.equip.some((x) => rSel.equip.has(x)))
-      .map((r) => ({ r, match: r.items.filter((it) => [...rSel.ing].some((k) => it.label.includes(k))).length }))
-      .sort((a, b) => b.match - a.match || a.r.min - b.r.min);
+    const have = (it) => [...rSel.ing].some((k) => it.label.includes(k));
+    const list = RECIPES.filter((r) => !rSel.equip.size || r.equip.some((x) => rSel.equip.has(x)))
+      .map((r) => ({ r, match: r.items.filter(have).length }))
+      .sort(RECIPE_SORT[$("#recipeSort").value]);
     $("#recipeCount").textContent = `${list.length} 道`;
-    $("#recipes").innerHTML = list.length ? list.map(({ r, match }) => `<li class="recipe">
-      <div class="recipe-head"><h4>${esc(r.name)}</h4>${rSel.ing.size ? `<span class="have-count ${match ? "" : "none"}">你有 ${match} 樣</span>` : ""}</div>
-      <p class="meta"><b>${esc(r.equip.join("、"))}</b><span>約 ${r.min} 分鐘</span><span>${fmt(r.kcal)} 大卡</span><span>蛋白質 ${fmt(r.protein, 1)} g</span></p>
-      <ul>${r.items.map((it) => `<li class="${[...rSel.ing].some((k) => it.label.includes(k)) ? "have" : ""}">${esc(it.label)}<small>${it.g} g</small></li>`).join("")}</ul>
-      <ol>${r.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
+    $("#recipes").innerHTML = list.length ? list.map(({ r, match }) => `<li class="recipe eq-${EQ_KEY[r.equip[0]]}">
+      <div class="recipe-top">${r.equip.map((x) => `<span class="equip eq-${EQ_KEY[x]}">${esc(x)}</span>`).join("")}${rSel.ing.size ? `<span class="have-count ${match ? "" : "none"}">你有 ${match}／${r.items.length} 樣</span>` : ""}</div>
+      <h4>${esc(r.name)}</h4>
+      <ul class="recipe-ings">${r.items.map((it) => `<li class="${have(it) ? "have" : ""}">${esc(it.label)}<small>${it.g} g</small></li>`).join("")}</ul>
+      <dl class="recipe-stats">
+        <div><dt>熱量</dt><dd>${fmt(r.kcal)}<small>大卡</small></dd></div>
+        <div><dt>蛋白質</dt><dd>${fmt(r.protein, 1)}<small>g</small></dd></div>
+        <div><dt>時間</dt><dd>${r.min}<small>分鐘</small></dd></div>
+      </dl>
+      <details class="recipe-steps"><summary>看做法・${r.steps.length} 步</summary><ol>${r.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol></details>
     </li>`).join("") : `<li class="empty">這個設備還沒有食譜。取消一個設備條件看看。</li>`;
   }
 
@@ -566,13 +636,23 @@
   }
 
   // ---------- 啟動 ----------
-  function renderAll() { renderListings(); renderCombos(); if ($("#view-nutri").classList.contains("is-active")) renderNutrition(); }
+  // 各區分開更新：某一區出錯時，其他區和預訂結果照樣顯示，不會要按第二次才出現
+  function renderAll() {
+    for (const fn of [renderListings, renderCombos, () => $("#view-nutri").classList.contains("is-active") && renderNutrition()]) {
+      try { fn(); } catch (err) { console.error(err); }
+    }
+  }
   async function loadRemote() {
     if (!CFG.APPS_SCRIPT_URL) return;
     try {
-      const res = await fetch(`${CFG.APPS_SCRIPT_URL}?action=listings`);
+      $("#tonight").innerHTML = `<p class="tonight-sub">正在讀取今晚的惜食…</p>`;
+      const res = await fetch(`${CFG.APPS_SCRIPT_URL}?action=listings`, { signal: AbortSignal.timeout(15000) });
       const data = await res.json();
-      if (Array.isArray(data.items)) { items = data.items; $("#demoText").textContent = "品項由合作店家即時上架。"; $("#resetDemo").hidden = true; }
+      if (!Array.isArray(data.items)) throw new Error("bad data");
+      // 店家 id 打錯的品項先略過，不讓一筆錯字弄壞整頁
+      items = data.items.filter((x) => shopById[x.shop]);
+      $("#demoText").textContent = "品項與份數來自店家試算表，重新整理可看到最新狀況。";
+      $("#resetDemo").hidden = true;
     } catch { $("#demoText").textContent = "連不到店家資料，目前顯示示範品項。"; }
   }
   (async function start() {
