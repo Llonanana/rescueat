@@ -174,8 +174,7 @@
     // 拉遠時，洽談中的店縮成小圓點，避免標籤疊在一起
     const zoomClass = () => {
       map.getContainer().classList.toggle("zoom-lo", map.getZoom() < 18);
-      map.getContainer().classList.toggle("zoom-far", map.getZoom() < 17);   // 再拉遠時標籤只留店名
-      map.getContainer().classList.toggle("zoom-dot", map.getZoom() < 16);   // 更遠時只留圓點，避免互相蓋住
+      map.getContainer().classList.toggle("zoom-dot", map.getZoom() < 16);   // 拉遠時只留圓點：正門附近三家店太近，標籤會互相蓋住
     };
     map.on("zoomend", zoomClass); zoomClass();
   }
@@ -288,6 +287,9 @@
     filt.cat = c.dataset.cat; renderListings();
   }));
   $("#onlyMicro").addEventListener("change", (e) => { filt.micro = e.target.checked; renderListings(); });
+  // 第一次使用的三步驟說明，按「知道了」後不再出現
+  $("#howto").hidden = !!store.get("re_seen_howto", false);
+  $("#howtoClose").addEventListener("click", () => { $("#howto").hidden = true; store.set("re_seen_howto", true); });
   $("#sortBy").addEventListener("change", (e) => { filt.sort = e.target.value; renderListings(); });
 
   document.addEventListener("click", (e) => {
@@ -310,7 +312,7 @@
   }
   // 重設示範資料：清掉訪客資料並登出；已註冊的示範帳號與其紀錄保留
   $("#resetDemo").addEventListener("click", () => {
-    ["re_reservations", "re_eaten", "re_profile", "re_favs", "re_session"].forEach(store.del);
+    ["re_reservations", "re_eaten", "re_profile", "re_favs", "re_session", "re_seen_howto"].forEach(store.del);
     location.reload();
   });
 
@@ -499,6 +501,9 @@
       </div>
       <div class="today-bar ${left < 0 ? "over" : ""}"><span style="width:${Math.min(100, ate / N.kcal * 100)}%"></span></div>
       <p class="today-left">${left >= 0 ? `還可以吃 <b>${fmt(left)} 大卡</b>` : `已超過 <b>${fmt(-left)} 大卡</b>`}，蛋白質${pGap > 0 ? `還差 <b>${fmt(pGap, 1)} g</b>` : "<b>已達建議量</b>"}</p>`;
+    // 手機的固定小橫條：記錄時也看得到累計熱量
+    $("#nutriPeek").innerHTML = `<span class="peek-text">${dayName()} <b>${fmt(ate)}</b>／${fmt(N.kcal)} 大卡</span>
+      <span class="peek-bar ${left < 0 ? "over" : ""}"><i style="width:${Math.min(100, ate / N.kcal * 100)}%"></i></span><span class="peek-go">看結果 ↓</span>`;
     $("#menuNote").hidden = !day.some((e) => e.menu);
     $("#nextWrap").hidden = viewDate !== today();   // 回看過去的日子時不推薦下一餐
     $("#bars").innerHTML = N.targets.map((t) => {
@@ -551,6 +556,7 @@
       <button type="button" data-day="${shift(1)}" aria-label="後一天" ${viewDate >= today() ? "disabled" : ""}>›</button>
       ${viewDate === today() ? "" : `<button type="button" class="linklike" data-day="${today()}">回到今天</button>`}`;
   }
+  $("#nutriPeek").addEventListener("click", () => $("#todaySum").scrollIntoView({ behavior: "smooth", block: "start" }));
   $("#dayNav").addEventListener("click", (e) => {
     const b = e.target.closest("[data-day]"); if (!b || b.disabled) return;
     viewDate = b.dataset.day; renderNutrition();
@@ -661,7 +667,14 @@
   const rSel = { equip: new Set(), ing: new Set() };
   $("#equipChips").innerHTML = EQUIP.map((x) => `<button class="chip eq-${EQ_KEY[x]}" data-equip="${x}" aria-pressed="false">${x}</button>`).join("");
   $("#ingChips").innerHTML = INGS.map((x) => `<button class="chip" data-ing="${x}" aria-pressed="false">${x}</button>`).join("");
-  function toggle(set, v, btn) { set.has(v) ? set.delete(v) : set.add(v); btn.classList.toggle("is-on"); btn.setAttribute("aria-pressed", set.has(v)); renderRecipes(); }
+  function toggle(set, v, btn) {
+    set.has(v) ? set.delete(v) : set.add(v); btn.classList.toggle("is-on"); btn.setAttribute("aria-pressed", set.has(v));
+    const n = rSel.equip.size + rSel.ing.size;
+    $("#filterSum").textContent = n ? `已選 ${[...rSel.equip, ...rSel.ing].join("、")}` : "設備、手邊食材";
+    renderRecipes();
+  }
+  // 手機與平板：篩選先收起來，打開頁面先看到食譜
+  if (matchMedia("(max-width: 1000px)").matches) $("#filterBox").open = false;
   $("#equipChips").addEventListener("click", (e) => { const b = e.target.closest("[data-equip]"); if (b) toggle(rSel.equip, b.dataset.equip, b); });
   $("#ingChips").addEventListener("click", (e) => { const b = e.target.closest("[data-ing]"); if (b) toggle(rSel.ing, b.dataset.ing, b); });
   $("#recipeSort").addEventListener("change", renderRecipes);

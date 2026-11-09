@@ -60,6 +60,19 @@ button { font: inherit; }
 .demo-note .linklike { color: var(--ink-2); font-weight: 400; white-space: nowrap; }
 .linklike[hidden] { display: none; }
 .note-actions { display: flex; gap: 16px; }
+.note-short { display: none; }
+/* 第一次使用的三步驟說明：順序就是實際流程 */
+.howto { position: relative; margin: 0 0 16px; padding: 12px 14px 10px; background: var(--green-bg); border-radius: 3px; }
+.howto[hidden] { display: none; }
+.howto ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; counter-reset: step; }
+.howto li { display: grid; grid-template-columns: 22px minmax(0, 1fr); column-gap: 10px; counter-increment: step; font-size: .84rem; line-height: 1.5; }
+.howto li::before { content: counter(step); grid-row: span 2; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--green); color: #fff; font: 700 .8rem var(--num); }
+.howto li b { font-size: .9rem; }
+.howto li span { color: var(--ink-2); }
+.howto-close { display: block; margin: 8px 0 0 auto; padding: 4px 12px; background: var(--paper); border: 1px solid var(--green); border-radius: 3px; color: var(--green); font-size: .82rem; cursor: pointer; }
+/* 我的營養：手機固定小橫條（電腦版結果就在旁邊，不需要） */
+.peek { display: none; }
+.filter-box > summary { display: none; }
 #installApp { color: var(--green); font-weight: 700; }
 
 /* ================= 共用 ================= */
@@ -219,7 +232,6 @@ select:focus, input:focus { border-color: var(--green); outline: 1px solid var(-
 .shop-pin.is-on .dot { background: var(--ink); }
 .shop-pin:not(.live).is-on .lbl b { font-weight: 700; }
 .zoom-lo .shop-pin:not(.live) .lbl { display: none; }
-.zoom-far .shop-pin.live .lbl span { display: none; }
 .zoom-dot .shop-pin.live .lbl, .zoom-dot .gate-pin { display: none; }
 .zoom-dot .shop-pin.live, .zoom-dot .shop-pin.live.pin-nw, .zoom-dot .shop-pin.live.pin-sw, .zoom-dot .shop-pin.live.pin-se { transform: translate(-7px, -7px); }
 .zoom-dot .shop-pin.live::after, .zoom-dot .shop-pin.live.pin-nw::after, .zoom-dot .shop-pin.live.pin-sw::after, .zoom-dot .shop-pin.live.pin-se::after {
@@ -522,6 +534,26 @@ dialog::backdrop { background: rgba(27, 42, 34, .5); }
   .slogan { display: none; }
 }
 @media (max-width: 1000px) {
+  .peek {
+    position: sticky; top: 60px; z-index: 900; width: 100%; display: flex; align-items: center; gap: 10px;
+    padding: 9px max(16px, env(safe-area-inset-left)); background: var(--paper); border: 0; border-bottom: 1px solid var(--line);
+    color: var(--ink); font: inherit; font-size: .88rem; text-align: left; cursor: pointer;
+  }
+  .peek-text { flex: none; }
+  .peek-text b { font: 700 1.1rem var(--num); }
+  .peek-bar { flex: 1; height: 6px; background: var(--line-2); min-width: 40px; }
+  .peek-bar i { display: block; height: 100%; background: var(--green); }
+  .peek-bar.over i { background: var(--red); }
+  .peek-go { flex: none; color: var(--green); font-size: .82rem; }
+  #todaySum { scroll-margin-top: 120px; }
+  /* 食譜篩選收合成一列，標題寫出已選的條件 */
+  .filter-box { border: 1px solid var(--line); border-radius: 3px; background: var(--paper); }
+  .filter-box > summary { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 6px 12px; cursor: pointer; }
+  .filter-box > summary b { font-size: .92rem; }
+  .filter-box > summary small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: .8rem; }
+  .filter-box > summary::after { content: "展開"; margin-left: auto; flex: none; color: var(--green); font-size: .8rem; }
+  .filter-box[open] > summary::after { content: "收起"; }
+  .filter-box .recipe-filters { padding: 4px 12px 12px; }
   .shell { grid-template-columns: minmax(0, 1fr); max-width: 760px; margin: 0 auto; row-gap: 40px; }
   .rail { position: static; max-height: none; overflow: visible; }
   .budget { max-width: 320px; }
@@ -555,6 +587,18 @@ dialog::backdrop { background: rgba(27, 42, 34, .5); }
   .demo-note { padding-block: 5px; }
   /* iPhone 在輸入框字小於 16px 時會自動放大畫面 */
   input, select { font-size: 16px !important; }
+  .note-long { display: none; }
+  .note-short { display: inline; }
+  .peek { top: 52px; }
+  /* 手指好點：按鈕至少約 40 px 高 */
+  .chip { min-height: 40px; padding: 6px 14px; }
+  .quick .chip { min-height: 36px; padding: 6px 4px; }
+  .seg button { min-height: 44px; }
+  .star { min-width: 40px; min-height: 40px; font-size: 1.2rem; }
+  .add-row { padding-block: 11px; }
+  .day-nav button:not(.linklike) { width: 40px; height: 40px; }
+  .note-actions .linklike { padding-block: 6px; }
+  .row-act .btn { min-height: 40px; }
   .map-layout { grid-template-columns: minmax(0, 1fr); height: auto; min-height: 0; }
   .map { height: 42vh; min-height: 260px; }
   .panel { overflow: visible; padding: 20px 16px 32px; border-left: 0; }
