@@ -2,14 +2,20 @@
 <html lang="zh-Hant-TW">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>RescuEat 政大惜食地圖</title>
   <meta name="description" content="政大周邊打烊前剩食地圖：找剩食、跨店組一餐、看營養缺口、用宿舍設備做剩食料理。">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="icon" href="img/favicon.png" type="image/png">
-  <link rel="apple-touch-icon" href="img/logo.png">
+  <link rel="apple-touch-icon" href="img/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#FFFFFF">
+  <!-- 手機 App（PWA）：加到主畫面後全螢幕開啟 -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="RescuEat">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@900&family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
   <link rel="stylesheet" href="css/style.css">
@@ -38,11 +44,17 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg><span>資料來源</span>
       </button>
     </nav>
+    <a class="account-btn" href="#account" id="accountBtn">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg><span id="accountName">登入</span>
+    </a>
   </header>
 
   <div class="demo-note" role="note">
     <span id="demoText">示範版本：品項與原價取自各店公開的菜單；惜食價、剩餘份數、取餐時間是示範值。</span>
-    <button class="linklike" id="resetDemo">重設示範資料</button>
+    <span class="note-actions">
+      <button class="linklike" id="installApp" hidden>安裝成 App</button>
+      <button class="linklike" id="resetDemo">重設示範資料</button>
+    </span>
   </div>
 
   <main>
@@ -122,6 +134,8 @@
         <aside class="rail">
         <h2 id="h-nutri">今天還差多少營養</h2>
         <p class="lede">用國健署 DRIs 第八版算出你的每日建議量，再記下今天吃了什麼，看看還缺什麼。數值為估算，僅供參考，不是醫療建議。</p>
+        <details class="profile-box" id="profileBox">
+          <summary><span class="profile-sum"><b id="profileSum">女・20 歲・160 cm・52 kg・活動稍低</b><small id="profileKcal"></small></span><span class="profile-edit"><span class="when-closed">修改</span><span class="when-open">收起</span></span></summary>
         <form class="profile" id="profile">
           <label>性別
             <select name="sex"><option>女</option><option>男</option></select>
@@ -139,9 +153,16 @@
           </label>
         </form>
         <p class="energy-note" id="energyNote"></p>
+        </details>
 
-        <div class="log">
-          <h3 class="subhead">今天吃了什麼</h3>
+        <div class="log adder">
+          <h3 class="subhead">記錄吃了什麼</h3>
+          <div class="seg" role="tablist" aria-label="記錄方式">
+            <button type="button" role="tab" aria-selected="true" aria-controls="paneSearch" data-pane="search">搜尋食材</button>
+            <button type="button" role="tab" aria-selected="false" aria-controls="paneMeals" data-pane="meals">常用餐點</button>
+            <button type="button" role="tab" aria-selected="false" aria-controls="paneMenu" data-pane="menu">店家菜單</button>
+          </div>
+          <div class="pane" id="paneSearch" role="tabpanel" data-pane="search">
           <div class="search">
             <label for="foodSearch" class="sr-only">搜尋食材</label>
             <input id="foodSearch" type="search" placeholder="搜尋食藥署資料庫，例如：雞胸、白飯、豆漿" autocomplete="off">
@@ -158,18 +179,28 @@
             <button class="chip" data-quick="鮮奶">鮮奶</button>
           </div>
           <ul class="results" id="foodResults" aria-label="搜尋結果"></ul>
-          <div class="meals" id="mealQuick" role="group" aria-labelledby="mealsHead"></div>
-          <div class="meals" id="menuQuick" role="group" aria-labelledby="menuHead"></div>
-          <ul class="eaten" id="eaten"></ul>
+          </div>
+          <div class="pane" id="paneMeals" role="tabpanel" data-pane="meals" hidden>
+            <div class="meals" id="mealQuick" role="group" aria-labelledby="mealsHead"></div>
+          </div>
+          <div class="pane" id="paneMenu" role="tabpanel" data-pane="menu" hidden>
+            <div class="meals" id="menuQuick" role="group" aria-labelledby="menuHead"></div>
+          </div>
         </div>
         </aside>
         <div class="main">
+        <nav class="day-nav" id="dayNav" aria-label="切換日期" hidden></nav>
+        <div class="today" id="todaySum" aria-live="polite"></div>
+        <h3 class="subhead" id="eatenHead">今天吃了<small id="eatenCount"></small></h3>
+        <ul class="eaten" id="eaten"></ul>
         <h3 class="subhead">和每日建議量比較</h3>
         <div class="bars" id="bars"></div>
         <p class="hint" id="menuNote" hidden>店家菜單只標示熱量與蛋白質，記錄的店家品項不會計入其他營養素。</p>
+        <div id="nextWrap">
         <h3 class="subhead">下一餐推薦</h3>
         <p class="hint" id="nextHint"></p>
         <ul class="rows" id="nextMeal"></ul>
+        </div>
         </div>
       </div>
     </section>
@@ -184,6 +215,7 @@
           <div class="filter-line"><span id="lbl-equip">我有</span><div class="chips" role="group" aria-labelledby="lbl-equip" id="equipChips"></div></div>
           <div class="filter-line"><span id="lbl-ing">手邊食材</span><div class="chips" role="group" aria-labelledby="lbl-ing" id="ingChips"></div></div>
         </div>
+        <label class="check fav-only" id="favOnlyWrap" hidden><input type="checkbox" id="favOnly"> 只看我收藏的食譜</label>
         <p class="hint rail-note">這些是示範食譜，尚待具營養背景的同學審閱。</p>
         </aside>
         <div class="main">
@@ -199,6 +231,63 @@
           </label>
         </div>
         <ul class="recipes" id="recipes"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 我的帳號（示範版會員） -->
+    <section class="view" id="view-account" aria-labelledby="h-account">
+      <div class="shell">
+        <aside class="rail">
+          <h2 id="h-account">我的帳號</h2>
+          <p class="lede" id="accountLede">登入後，每天的飲食紀錄、個人資料、預訂與收藏都會保留下來。</p>
+          <p class="demo-warn">示範版：帳號只存在這台瀏覽器，換裝置或清除瀏覽資料就會消失。請不要使用你常用的密碼。</p>
+          <div id="authBox">
+            <div class="seg" role="tablist" aria-label="登入或註冊">
+              <button type="button" role="tab" aria-selected="true" data-auth="login">登入</button>
+              <button type="button" role="tab" aria-selected="false" data-auth="register">註冊</button>
+            </div>
+            <form class="auth-form" id="loginForm" data-auth="login" novalidate>
+              <label>Email<input name="email" type="email" autocomplete="username" required></label>
+              <label>密碼<input name="password" type="password" autocomplete="current-password" required></label>
+              <p class="form-error" role="alert"></p>
+              <button class="btn" type="submit">登入</button>
+            </form>
+            <form class="auth-form" id="registerForm" data-auth="register" novalidate hidden>
+              <label>暱稱<input name="name" autocomplete="nickname" maxlength="20" required></label>
+              <label>Email<input name="email" type="email" autocomplete="username" required></label>
+              <label>密碼（至少 6 個字元）<input name="password" type="password" autocomplete="new-password" minlength="6" required></label>
+              <label>再輸入一次密碼<input name="password2" type="password" autocomplete="new-password" required></label>
+              <p class="form-error" role="alert"></p>
+              <button class="btn" type="submit">註冊並登入</button>
+              <p class="hint">註冊時，你今天已經記錄的飲食、預訂與個人資料會一起帶進新帳號。</p>
+            </form>
+          </div>
+          <div id="meBox" hidden>
+            <p class="me-name" id="meName"></p>
+            <p class="me-mail" id="meMail"></p>
+            <button class="btn ghost" type="button" id="logoutBtn">登出</button>
+          </div>
+        </aside>
+        <div class="main" id="accountMain">
+          <div id="accountGuest">
+            <h3 class="subhead">會員可以做什麼</h3>
+            <ul class="perk-list">
+              <li><b>飲食紀錄歷史</b><span>紀錄不會隔天清空，可以切換日期回看，也看得到最近 7 天的熱量趨勢。</span></li>
+              <li><b>個人資料同步</b><span>身高、體重、活動量存在帳號裡，登入就自動帶入。</span></li>
+              <li><b>預訂紀錄</b><span>列出過去預訂過的惜食和取餐碼。</span></li>
+              <li><b>收藏</b><span>把常吃的餐點、店家品項和喜歡的食譜加到收藏，記錄時排在最上面。</span></li>
+            </ul>
+          </div>
+          <div id="accountMember" hidden>
+            <h3 class="subhead">最近 7 天<small id="weekAvg"></small></h3>
+            <ol class="week" id="weekChart"></ol>
+            <p class="hint" id="weekHint"></p>
+            <h3 class="subhead">預訂紀錄<small id="historyCount"></small></h3>
+            <ul class="history" id="historyList"></ul>
+            <h3 class="subhead">我的收藏</h3>
+            <div class="fav-grid" id="favList"></div>
+          </div>
         </div>
       </div>
     </section>

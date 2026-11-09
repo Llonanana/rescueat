@@ -23,6 +23,7 @@ code .
 | 我的營養 | 依身高體重年齡算每日熱量，DRIs 第八版查各營養素建議量；搜尋食藥署資料庫或點選 13 道常用餐點記錄今天吃的東西，顯示缺口與下一餐推薦 | `data/foods.js`、`data/dris.js`、`data/meals.js` |
 | 剩食料理 | 依設備（微波爐、電鍋、快煮鍋、免開火）與手邊食材找 15 分鐘內的料理 | `data/recipes.js` |
 | 資料來源 | 資料集清理結果與來源 | `data/stats.js` |
+| 我的帳號（示範版） | 註冊、登入；會員的飲食紀錄保留歷史並可切換日期回看、最近 7 天熱量趨勢、預訂紀錄、收藏餐點與食譜。帳號只存在這台瀏覽器（密碼加鹽 SHA-256 後保存），不是正式會員系統 | 瀏覽器 localStorage |
 
 ## 資料夾
 
@@ -46,6 +47,16 @@ python scripts/build_web_data.py
 ```
 
 原始檔約 66 MB，不放進 Git（見 `.gitignore`）。
+
+## 手機 App（PWA）
+
+網站本身就是手機 App：用手機打開網址後「加到主畫面」，就會有自己的圖示、全螢幕開啟，沒網路也能打開（`manifest.webmanifest`、`sw.js`）。
+
+1. 把網站放上 GitHub Pages：repo 的 Settings → Pages → Source 選「Deploy from a branch」，Branch 選 `main`、資料夾 `/ (root)`，按 Save。私人 repo 需要 GitHub Pro（學生可用 GitHub Education 免費申請），或把 repo 改成公開
+2. 一兩分鐘後用手機打開 `https://<帳號>.github.io/rescueat/`
+3. Android（Chrome）：按頁面上方的「安裝成 App」，或選單裡的「安裝應用程式」；iPhone（Safari）：按「分享」→「加入主畫面」
+
+離線快取對自己網站的檔案採「網路優先」：有網路一定拿最新版，所以更新網站後不用清快取。
 
 ## 接上 Google 試算表
 

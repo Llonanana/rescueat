@@ -27,11 +27,27 @@
   const store = {
     get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* 私密瀏覽等情況 */ } },
+    del(k) { try { localStorage.removeItem(k); } catch { /* 私密瀏覽等情況 */ } },
   };
-  // 預訂與飲食紀錄只算當天，隔天自動清空
   const today = () => new Date().toLocaleDateString("sv");
-  let reservations = store.get("re_reservations", []).filter((r) => r.at && new Date(r.at).toLocaleDateString("sv") === today());
-  let eaten = store.get("re_eaten", []).filter((e) => e.d === today());
+  const dayOf = (iso) => new Date(iso).toLocaleDateString("sv");
+
+  // ---------- 會員（示範版：帳號只存在這台瀏覽器，密碼加鹽雜湊後才保存） ----------
+  const users = store.get("re_users", {});
+  const me = users[store.get("re_session", "")] || null;
+  // 訪客的資料放在 re_xxx；會員放在自己的鍵底下，登入登出不會混在一起
+  const ukey = (name) => (me ? `re_u:${me.email}:${name}` : `re_${name}`);
+  // 會員保留所有紀錄；訪客只留當天，隔天自動清空
+  let reservationsAll = store.get(ukey("reservations"), []).filter((r) => r.at && (me || dayOf(r.at) === today()));
+  let reservations = reservationsAll.filter((r) => dayOf(r.at) === today());
+  const saveReservations = () => store.set(ukey("reservations"), reservationsAll);
+  let eatenAll = store.get(ukey("eaten"), []).filter((e) => e.d && (me || e.d === today()));
+  let viewDate = today();                                   // 「我的營養」正在看哪一天（只有會員能切換）
+  const dayEaten = () => eatenAll.filter((e) => e.d === viewDate);
+  const saveEaten = () => store.set(ukey("eaten"), eatenAll);
+  const dayName = (d = viewDate) => (d === today() ? "今天" : `${+d.slice(5, 7)}/${+d.slice(8)}`);
+  const favs = { meals: [], menu: [], recipes: [], ...store.get(ukey("favs"), {}) };
+  const saveFavs = () => store.set(ukey("favs"), favs);
 
   let toastTimer = null;
   function toast(msg) {
@@ -75,6 +91,7 @@
     if (name === "map" && map) setTimeout(() => map.invalidateSize(), 0);
     if (name === "combo") renderCombos();
     if (name === "nutri") renderNutrition();
+    if (name === "account") renderAccount();
     try { history.replaceState(null, "", `#${name}`); } catch { /* 部分瀏覽器的 file:// 不允許 */ }
   }
   $$(".tab").forEach((t) => t.addEventListener("click", () => showView(t.dataset.view)));
@@ -286,12 +303,14 @@
   function cancelReservation(i) {
     const [r] = reservations.splice(i, 1);
     r.itemIds.forEach((id) => { const it = items.find((x) => x.id === id); if (it) it.qty += 1; });
-    store.set("re_reservations", reservations);
+    reservationsAll = reservationsAll.filter((x) => x !== r);
+    saveReservations();
     renderAll();
     toast("已取消預訂，份數已放回。");
   }
+  // 重設示範資料：清掉訪客資料並登出；已註冊的示範帳號與其紀錄保留
   $("#resetDemo").addEventListener("click", () => {
-    ["re_reservations", "re_eaten", "re_profile"].forEach((k) => { try { localStorage.removeItem(k); } catch { /* 私密瀏覽等情況 */ } });
+    ["re_reservations", "re_eaten", "re_profile", "re_favs", "re_session"].forEach(store.del);
     location.reload();
   });
 
@@ -322,8 +341,11 @@
       } catch { toast("預訂沒有送出，請檢查網路後再試一次。"); return; }
     }
     pendingIds.forEach((id) => { const it = items.find((x) => x.id === id); it.qty = Math.max(0, it.qty - 1); });
-    reservations.push({ code, itemIds: pendingIds, at: new Date().toISOString() });
-    store.set("re_reservations", reservations);
+    // 存下當時的品名與價格，日後品項下架了，預訂紀錄還看得懂
+    const snap = pendingIds.map((id) => { const it = items.find((x) => x.id === id); return { name: it.name, shop: it.shop, deal: it.deal }; });
+    const rec = { code, itemIds: pendingIds, at: new Date().toISOString(), items: snap };
+    reservations.push(rec); reservationsAll.push(rec);
+    saveReservations();
     renderAll();
     $("#dlgTitle").textContent = "已預訂";
     $("#dlgBody").innerHTML = `<p>到店出示取餐碼：</p><p class="pickup-code">${code}</p>${CFG.APPS_SCRIPT_URL ? "" : `<p class="hint">示範模式：預訂只存在這台裝置，可以在剩食地圖的「我的預訂」取消。</p>`}`;
@@ -405,12 +427,12 @@
 
   // ---------- 我的營養 ----------
   const PAL = { 低: 1.3, 稍低: 1.5, 適度: 1.7, 高: 1.9 };
-  const profile = store.get("re_profile", null);
+  const profile = store.get(ukey("profile"), null);
   if (profile) for (const [k, v] of Object.entries(profile)) { const el = $(`#profile [name=${k}]`); if (el) el.value = v; }
   function readProfile() {
     const fd = new FormData($("#profile"));
     const p = Object.fromEntries(fd.entries());
-    store.set("re_profile", p);
+    store.set(ukey("profile"), p);
     // 輸入到一半或超出範圍時，用合理範圍內的值計算
     const within = (v, lo, hi, d) => Math.min(hi, Math.max(lo, +v || d));
     return { sex: p.sex, age: within(p.age, 16, 100, 20), height: within(p.height, 120, 220, 160), weight: within(p.weight, 30, 200, 55), activity: p.activity };
@@ -435,14 +457,14 @@
       ],
     };
   }
-  function eatenTotals() {
+  function eatenTotals(list = dayEaten()) {
     const t = {};
     // 單一食材是 { id, g }；常用餐點把組成放在 parts 裡；店家菜單品項只有熱量與蛋白質
-    for (const e of eaten) if (e.menu) {
+    for (const e of list) if (e.menu) {
       t.energy_kcal = (t.energy_kcal || 0) + (e.kcal || 0);
       t.protein_g = (t.protein_g || 0) + (e.protein || 0);
     }
-    for (const e of eaten) if (!e.menu) for (const p of e.parts || [e]) {
+    for (const e of list) if (!e.menu) for (const p of e.parts || [e]) {
       const f = foodById[p.id]; if (!f) continue;
       for (const k of ["energy_kcal", "protein_g", "fiber_g", "calcium_mg", "iron_mg", "vitC_mg", "sodium_mg"]) t[k] = (t[k] || 0) + (f[k] || 0) * p.g / 100;
     }
@@ -453,14 +475,32 @@
     const N = needsFor(p);
     $("#energyNote").textContent = `每日熱量約 ${fmt(N.kcal)} 大卡：基礎代謝 ${fmt(N.bmr)} 大卡（依你的身高體重年齡）× 活動係數 ${PAL[p.activity]}。` +
       (N.tableKcal ? `DRIs 表同年齡同性別的參考值為 ${fmt(N.tableKcal)} 大卡。` : "");
-    $("#eaten").innerHTML = eaten.length ? eaten.map((e, i) => {
-      if (e.menu) return `<li><span>${esc(e.name)}，${fmt(e.kcal)} 大卡<small>${esc(e.shop)}・${e.nsrc === "official" ? "店家標示" : CFG.ESTIMATE_NOTE}，只計熱量與蛋白質</small></span><button data-del="${i}" aria-label="刪除 ${esc(e.name)}">刪除</button></li>`;
-      if (e.parts) return `<li><span>${esc(e.meal)}，${fmt(kcalOf(e.parts))} 大卡<small>${e.parts.map((p) => `${esc(p.label)} ${p.g} g`).join("、")}</small></span><button data-del="${i}" aria-label="刪除 ${esc(e.meal)}">刪除</button></li>`;
+    $("#profileSum").textContent = `${p.sex}・${p.age} 歲・${p.height} cm・${p.weight} kg・活動${p.activity}`;
+    $("#profileKcal").textContent = `每日約 ${fmt(N.kcal)} 大卡`;
+    // 每筆紀錄：名稱與說明在左，熱量靠右對齊，方便一眼加總
+    const row = (i, name, kcal, note) => `<li><div class="eaten-name"><span>${name}</span>${note ? `<small>${note}</small>` : ""}</div><span class="eaten-kcal">${fmt(kcal)}<small>大卡</small></span><button data-del="${i}" aria-label="刪除 ${name}">刪除</button></li>`;
+    renderDayNav();
+    const day = dayEaten();
+    $("#eaten").innerHTML = day.length ? day.map((e) => {
+      const i = eatenAll.indexOf(e);   // 刪除時用整體清單的位置
+      if (e.menu) return row(i, esc(e.name), e.kcal, `${esc(e.shop)}・${e.nsrc === "official" ? "店家標示" : CFG.ESTIMATE_NOTE}，只計熱量與蛋白質`);
+      if (e.parts) return row(i, esc(e.meal), kcalOf(e.parts), e.parts.map((p) => `${esc(p.label)} ${p.g} g`).join("、"));
       const f = foodById[e.id];
-      return `<li><span>${esc(f ? friendly(f).main : e.id)} ${fmt(e.g)} g，${fmt((f?.energy_kcal || 0) * e.g / 100)} 大卡</span><button data-del="${i}" aria-label="刪除 ${esc(f?.n)}">刪除</button></li>`;
-    }).join("") : `<li class="empty">還沒有紀錄。搜尋上方的食藥署資料庫，把今天吃的東西加進來。</li>`;
+      return row(i, `${esc(f ? friendly(f).main : e.id)} ${fmt(e.g)} g`, (f?.energy_kcal || 0) * e.g / 100, "");
+    }).join("") : `<li class="empty">還沒有紀錄。用「記錄吃了什麼」搜尋食材，或點常用餐點、店家菜單。</li>`;
+    $("#eatenCount").textContent = day.length ? `${day.length} 筆` : "";
+    $("#eatenHead").firstChild.textContent = `${dayName()}吃了`;
     const T = eatenTotals();
-    $("#menuNote").hidden = !eaten.some((e) => e.menu);
+    // 今天的總覽：吃了多少、還可以吃多少
+    const ate = T.energy_kcal || 0, left = N.kcal - ate, pGap = N.row.protein_g - (T.protein_g || 0);
+    $("#todaySum").innerHTML = `<div class="today-grid">
+        <div><p class="today-label">${dayName()}已吃</p><p class="today-kcal"><b>${fmt(ate)}</b><span>／ ${fmt(N.kcal)} 大卡</span></p></div>
+        <div class="today-side"><p class="today-label">蛋白質</p><p class="today-p"><b>${fmt(T.protein_g || 0)}</b><span>／ ${fmt(N.row.protein_g)} g</span></p></div>
+      </div>
+      <div class="today-bar ${left < 0 ? "over" : ""}"><span style="width:${Math.min(100, ate / N.kcal * 100)}%"></span></div>
+      <p class="today-left">${left >= 0 ? `還可以吃 <b>${fmt(left)} 大卡</b>` : `已超過 <b>${fmt(-left)} 大卡</b>`}，蛋白質${pGap > 0 ? `還差 <b>${fmt(pGap, 1)} g</b>` : "<b>已達建議量</b>"}</p>`;
+    $("#menuNote").hidden = !day.some((e) => e.menu);
+    $("#nextWrap").hidden = viewDate !== today();   // 回看過去的日子時不推薦下一餐
     $("#bars").innerHTML = N.targets.map((t) => {
       const got = T[t.key] || 0, pct = t.need ? got / t.need * 100 : 0;
       const over = t.upper && got > t.need;
@@ -490,39 +530,65 @@
   $("#profile").addEventListener("input", renderNutrition);
   $("#eaten").addEventListener("click", (e) => {
     const b = e.target.closest("[data-del]"); if (!b) return;
-    eaten.splice(+b.dataset.del, 1); store.set("re_eaten", eaten); renderNutrition();
+    eatenAll.splice(+b.dataset.del, 1); saveEaten(); renderNutrition();
+  });
+  // 記錄後的提示附上當天累計熱量：手機上總覽在下方，不用捲動也知道吃了多少
+  const todayKcal = () => fmt(eatenTotals().energy_kcal || 0);
+  function record(entry, label) {
+    eatenAll.push({ ...entry, d: viewDate });
+    saveEaten();
+    renderNutrition();
+    toast(`已記錄 ${label}・${dayName()}共 ${todayKcal()} 大卡`);
+  }
+  // 會員可以切換日期回看；訪客只有今天
+  function renderDayNav() {
+    const nav = $("#dayNav");
+    nav.hidden = false;
+    if (!me) { nav.innerHTML = `<span class="guest-hint">訪客的紀錄隔天會清空。<a href="#account">登入或註冊</a>就能保留每天的紀錄、回看過去的日子。</span>`; return; }
+    const shift = (n) => { const d = new Date(`${viewDate}T12:00`); d.setDate(d.getDate() + n); return d.toLocaleDateString("sv"); };
+    nav.innerHTML = `<button type="button" data-day="${shift(-1)}" aria-label="前一天">‹</button>
+      <span>${+viewDate.slice(5, 7)} 月 ${+viewDate.slice(8)} 日${viewDate === today() ? "（今天）" : ""}</span>
+      <button type="button" data-day="${shift(1)}" aria-label="後一天" ${viewDate >= today() ? "disabled" : ""}>›</button>
+      ${viewDate === today() ? "" : `<button type="button" class="linklike" data-day="${today()}">回到今天</button>`}`;
+  }
+  $("#dayNav").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-day]"); if (!b || b.disabled) return;
+    viewDate = b.dataset.day; renderNutrition();
   });
   // 常用餐點：點一下記錄一整份
   const kcalOf = (parts) => parts.reduce((t, p) => t + (foodById[p.id]?.energy_kcal || 0) * p.g / 100, 0);
-  $("#mealQuick").innerHTML = `<p class="meals-head" id="mealsHead">常用餐點<small>點一下記錄一整份</small></p>` +
-    [...new Set(MEALS.map((m) => m.type))].map((type) => `<div class="meal-line"><span>${esc(type)}</span><div>${
-      MEALS.map((m, i) => [m, i]).filter(([m]) => m.type === type)
-        .map(([m, i]) => `<button class="linklike" data-meal="${i}" title="約 ${fmt(kcalOf(m.parts))} 大卡：${esc(m.parts.map((p) => `${p.label} ${p.g} g`).join("、"))}">${esc(m.name)}</button>`).join("")
-    }</div></div>`).join("");
-  // 店家菜單：地圖上列出的品項，依店家分組
+  // 一鍵記錄的品項排成菜單板：品名．．．．熱量 ＋，依時段或店家分組
+  // 每列旁邊有收藏星號；收藏的項目另外排在「我的收藏」群組最上面
+  const star = (kind, key, name) => { const on = favs[kind].includes(key); return `<button type="button" class="star ${on ? "is-on" : ""}" data-fav="${kind}|${esc(key)}" aria-pressed="${on}" aria-label="${on ? "取消收藏" : "收藏"} ${esc(name)}">${on ? "★" : "☆"}</button>`; };
+  const addRow = (attr, name, kcal, tip, fav) => `<li class="add-item"><button class="add-row" ${attr} title="${esc(tip)}"><span class="n">${esc(name)}</span><span class="leader" aria-hidden="true"></span><span class="k">${fmt(kcal)}<small>大卡</small></span><span class="plus" aria-hidden="true">＋</span></button>${fav}</li>`;
+  const addGroup = (head, rows, cls = "") => `<div class="add-group ${cls}"><p class="add-group-head">${esc(head)}</p><ul class="add-list">${rows}</ul></div>`;
   const MENU = window.RE_LISTINGS.items.filter((x) => x.kcal != null);
-  $("#menuQuick").innerHTML = `<p class="meals-head" id="menuHead">店家菜單<small>依店家營養標示</small></p>` +
-    [...new Set(MENU.map((x) => x.shop))].map((sid) => `<div class="meal-line"><span>${esc(shortName(shopById[sid]))}</span><div>${
-      MENU.filter((x) => x.shop === sid).map((x) => `<button class="linklike" data-menu="${esc(x.id)}" title="${fmt(x.kcal)} 大卡，蛋白質 ${fmt(x.protein, 1)} g">${esc(x.name)}</button>`).join("")
-    }</div></div>`).join("") +
-    // 完全沒有營養標示的店家無法計算，只說明原因
-    [...new Set(window.RE_LISTINGS.items.map((x) => x.shop))].filter((sid) => !MENU.some((x) => x.shop === sid))
-      .map((sid) => `<div class="meal-line"><span>${esc(shortName(shopById[sid]))}</span><div class="hint">店家沒有公布營養標示，暫時無法記錄</div></div>`).join("");
+  function renderQuick() {
+    const mealRow = (m) => { const i = MEALS.indexOf(m); return addRow(`data-meal="${i}"`, m.name, kcalOf(m.parts), m.parts.map((p) => `${p.label} ${p.g} g`).join("、"), star("meals", m.name, m.name)); };
+    const favMeals = MEALS.filter((m) => favs.meals.includes(m.name));
+    $("#mealQuick").innerHTML = `<p class="meals-head" id="mealsHead">點一下記錄一整份，營養依食藥署資料計算</p>` +
+      (favMeals.length ? addGroup("★ 我的收藏", favMeals.map(mealRow).join(""), "is-fav") : "") +
+      [...new Set(MEALS.map((m) => m.type))].map((type) => addGroup(type, MEALS.filter((m) => m.type === type).map(mealRow).join(""))).join("");
+    // 店家菜單：地圖上列出的品項，依店家分組
+    const menuRow = (x) => addRow(`data-menu="${esc(x.id)}"`, x.name, x.kcal, `蛋白質 ${fmt(x.protein, 1)} g${x.nsrc === "official" ? "" : `，${CFG.ESTIMATE_NOTE}`}`, star("menu", x.id, x.name));
+    const favMenu = MENU.filter((x) => favs.menu.includes(x.id));
+    $("#menuQuick").innerHTML = `<p class="meals-head" id="menuHead">點一下記錄一份，只計熱量與蛋白質</p>` +
+      (favMenu.length ? addGroup("★ 我的收藏", favMenu.map(menuRow).join(""), "is-fav") : "") +
+      [...new Set(MENU.map((x) => x.shop))].map((sid) => addGroup(shopById[sid].name, MENU.filter((x) => x.shop === sid).map(menuRow).join(""))).join("") +
+      // 完全沒有營養標示的店家無法計算，只說明原因
+      [...new Set(window.RE_LISTINGS.items.map((x) => x.shop))].filter((sid) => !MENU.some((x) => x.shop === sid))
+        .map((sid) => `<div class="add-group"><p class="add-group-head">${esc(shopById[sid].name)}</p><p class="hint">店家沒有公布營養標示，暫時無法記錄</p></div>`).join("");
+  }
+  renderQuick();
   $("#menuQuick").addEventListener("click", (e) => {
     const b = e.target.closest("[data-menu]"); if (!b) return;
     const x = MENU.find((m) => m.id === b.dataset.menu);
-    eaten.push({ menu: x.id, name: x.name, shop: shopById[x.shop].name, kcal: x.kcal, protein: x.protein, nsrc: x.nsrc, d: today() });
-    store.set("re_eaten", eaten);
-    renderNutrition();
-    toast(`已記錄 ${x.name}，${fmt(x.kcal)} 大卡`);
+    record({ menu: x.id, name: x.name, shop: shopById[x.shop].name, kcal: x.kcal, protein: x.protein, nsrc: x.nsrc }, `${x.name}，${fmt(x.kcal)} 大卡`);
   });
   $("#mealQuick").addEventListener("click", (e) => {
     const b = e.target.closest("[data-meal]"); if (!b) return;
     const m = MEALS[+b.dataset.meal];
-    eaten.push({ meal: m.name, parts: m.parts.map((p) => ({ ...p })), d: today() });
-    store.set("re_eaten", eaten);
-    renderNutrition();
-    toast(`已記錄 ${m.name}，約 ${fmt(kcalOf(m.parts))} 大卡`);
+    record({ meal: m.name, parts: m.parts.map((p) => ({ ...p })) }, `${m.name}，約 ${fmt(kcalOf(m.parts))} 大卡`);
   });
   // 食材搜尋（名稱與俗名）
   // 日常說法 → 食藥署樣品名稱
@@ -564,10 +630,18 @@
     const res = searchFoods(e.target.value);
     $("#foodResults").innerHTML = res.map((f) => {
       const nm = friendly(f);
-      return `<li><button data-add="${f.id}"><span>${esc(nm.main)} <small>${esc(f.g)}</small>${nm.official ? `<small class="official">食藥署名稱：${esc(nm.official)}</small>` : ""}</span><small>${fmt(f.energy_kcal)} 大卡、蛋白質 ${fmt(f.protein_g ?? 0, 1)} g / 100 g</small></button></li>`;
+      return `<li><button class="result" data-add="${f.id}">
+        <span class="r-name"><b>${esc(nm.main)}</b><small>${esc(f.g)}${nm.official ? `・食藥署名稱：${esc(nm.official)}` : ""}</small></span>
+        <span class="r-kcal"><span>${fmt(f.energy_kcal)}<small>大卡</small></span><small>每 100 g・蛋白質 ${fmt(f.protein_g ?? 0, 1)} g</small></span>
+        <span class="plus" aria-hidden="true">＋</span></button></li>`;
     }).join("")
       || (e.target.value.trim() ? `<li class="hint">資料庫裡找不到「${esc(e.target.value)}」。換個說法或只打食材名稱試試，例如「滷雞腿」改「雞腿」。</li>` : "");
   });
+  // 記錄方式分頁：搜尋食材、常用餐點、店家菜單，一次只顯示一種
+  $$(".seg [data-pane]").forEach((b) => b.addEventListener("click", () => {
+    $$(".seg [data-pane]").forEach((x) => x.setAttribute("aria-selected", x === b));
+    $$(".adder .pane").forEach((pn) => { pn.hidden = pn.dataset.pane !== b.dataset.pane; });
+  }));
   $(".quick").addEventListener("click", (e) => {
     const b = e.target.closest("[data-quick]"); if (!b) return;
     const box = $("#foodSearch");
@@ -576,11 +650,8 @@
   $("#foodResults").addEventListener("click", (e) => {
     const b = e.target.closest("[data-add]"); if (!b) return;
     const g = Math.max(1, +$("#foodGrams").value || 100);
-    eaten.push({ id: b.dataset.add, g, d: today() });
-    store.set("re_eaten", eaten);
     $("#foodSearch").value = ""; $("#foodResults").innerHTML = "";
-    renderNutrition();
-    toast(`已記錄 ${friendly(foodById[b.dataset.add]).main} ${fmt(g)} g`);
+    record({ id: b.dataset.add, g }, `${friendly(foodById[b.dataset.add]).main} ${fmt(g)} g`);
   });
 
   // ---------- 剩食料理 ----------
@@ -603,12 +674,13 @@
   // 卡片只放判斷要不要做的資訊：設備、熱量、蛋白質、時間、食材；做法收在「看做法」裡
   function renderRecipes() {
     const have = (it) => [...rSel.ing].some((k) => it.label.includes(k));
-    const list = RECIPES.filter((r) => !rSel.equip.size || r.equip.some((x) => rSel.equip.has(x)))
+    const favOnly = me && $("#favOnly").checked;
+    const list = RECIPES.filter((r) => (!rSel.equip.size || r.equip.some((x) => rSel.equip.has(x))) && (!favOnly || favs.recipes.includes(r.name)))
       .map((r) => ({ r, match: r.items.filter(have).length }))
       .sort(RECIPE_SORT[$("#recipeSort").value]);
     $("#recipeCount").textContent = `${list.length} 道`;
     $("#recipes").innerHTML = list.length ? list.map(({ r, match }) => `<li class="recipe eq-${EQ_KEY[r.equip[0]]}">
-      <div class="recipe-top">${r.equip.map((x) => `<span class="equip eq-${EQ_KEY[x]}">${esc(x)}</span>`).join("")}${rSel.ing.size ? `<span class="have-count ${match ? "" : "none"}">你有 ${match}／${r.items.length} 樣</span>` : ""}</div>
+      <div class="recipe-top">${r.equip.map((x) => `<span class="equip eq-${EQ_KEY[x]}">${esc(x)}</span>`).join("")}${rSel.ing.size ? `<span class="have-count ${match ? "" : "none"}">你有 ${match}／${r.items.length} 樣</span>` : ""}${star("recipes", r.name, r.name)}</div>
       <h4>${esc(r.name)}</h4>
       <ul class="recipe-ings">${r.items.map((it) => `<li class="${have(it) ? "have" : ""}">${esc(it.label)}<small>${it.g} g</small></li>`).join("")}</ul>
       <dl class="recipe-stats">
@@ -617,7 +689,124 @@
         <div><dt>時間</dt><dd>${r.min}<small>分鐘</small></dd></div>
       </dl>
       <details class="recipe-steps"><summary>看做法・${r.steps.length} 步</summary><ol>${r.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol></details>
-    </li>`).join("") : `<li class="empty">這個設備還沒有食譜。取消一個設備條件看看。</li>`;
+    </li>`).join("") : `<li class="empty">${favOnly ? "還沒有符合條件的收藏食譜。點食譜右上角的 ☆ 就能收藏。" : "這個設備還沒有食譜。取消一個設備條件看看。"}</li>`;
+  }
+
+  $("#favOnly").addEventListener("change", renderRecipes);
+
+  // ---------- 會員：收藏、註冊、登入、帳號頁 ----------
+  document.addEventListener("click", (e) => {
+    const s = e.target.closest("[data-fav]"); if (!s) return;
+    if (!me) { toast("登入會員後才能收藏。"); return; }
+    const [kind, key] = s.dataset.fav.split("|");
+    const list = favs[kind], i = list.indexOf(key);
+    i < 0 ? list.push(key) : list.splice(i, 1);
+    saveFavs(); renderQuick(); renderRecipes();
+    toast(i < 0 ? "已加入收藏" : "已取消收藏");
+  });
+  const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  const hashPw = async (pw, salt) => hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${salt}:${pw}`)));
+  // 登入、登出後重新載入，讓所有分頁都改讀這個帳號的資料；提示訊息留到載入後顯示
+  function switchUser(email, msg) {
+    email ? store.set("re_session", email) : store.del("re_session");
+    try { sessionStorage.setItem("re_flash", msg); } catch { /* 不支援時略過提示 */ }
+    location.reload();
+  }
+  $$("#authBox .seg [data-auth]").forEach((b) => b.addEventListener("click", () => {
+    $$("#authBox .seg [data-auth]").forEach((x) => x.setAttribute("aria-selected", x === b));
+    $$("#authBox form").forEach((f) => { f.hidden = f.dataset.auth !== b.dataset.auth; });
+  }));
+  $("#registerForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const f = e.target, err = $(".form-error", f), v = Object.fromEntries(new FormData(f));
+    const email = v.email.trim().toLowerCase(), name = v.name.trim();
+    err.textContent = !name ? "請輸入暱稱。"
+      : !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ? "Email 格式不正確。"
+      : users[email] ? "這個 Email 已經註冊過，請直接登入。"
+      : v.password.length < 6 ? "密碼至少要 6 個字元。"
+      : v.password !== v.password2 ? "兩次輸入的密碼不一樣。"
+      : !crypto.subtle ? "這個瀏覽器無法安全保存密碼，請用 http://127.0.0.1 或 https 網址開啟。" : "";
+    if (err.textContent) return;
+    const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
+    users[email] = { name, email, salt, hash: await hashPw(v.password, salt), created: new Date().toISOString() };
+    store.set("re_users", users);
+    // 訪客今天的紀錄、預訂、個人資料帶進新帳號
+    for (const k of ["eaten", "reservations", "profile"]) { const g = store.get(`re_${k}`, null); if (g) store.set(`re_u:${email}:${k}`, g); }
+    switchUser(email, `歡迎，${name}！帳號已建立。`);
+  });
+  $("#loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const f = e.target, err = $(".form-error", f), v = Object.fromEntries(new FormData(f));
+    const u = users[v.email.trim().toLowerCase()];
+    if (!u || !crypto.subtle || (await hashPw(v.password, u.salt)) !== u.hash) { err.textContent = "Email 或密碼不正確。"; return; }
+    switchUser(u.email, `歡迎回來，${u.name}！`);
+  });
+  $("#logoutBtn").addEventListener("click", () => switchUser(null, "已登出。"));
+  const WEEKDAY = "日一二三四五六";
+  function renderAccount() {
+    $("#authBox").hidden = !!me; $("#meBox").hidden = !me; $("#accountLede").hidden = !!me;
+    $("#accountGuest").hidden = !!me; $("#accountMember").hidden = !me;
+    if (!me) return;
+    $("#meName").textContent = me.name; $("#meMail").textContent = me.email;
+    // 最近 7 天：每天的熱量，對照每日建議量
+    const need = needsFor(readProfile()).kcal;
+    const days = [...Array(7)].map((_, i) => {
+      const d = new Date(); d.setDate(d.getDate() - 6 + i);
+      const s = d.toLocaleDateString("sv"), list = eatenAll.filter((x) => x.d === s);
+      return { s, wd: WEEKDAY[d.getDay()], n: list.length, kcal: eatenTotals(list).energy_kcal || 0 };
+    });
+    const logged = days.filter((d) => d.n), max = Math.max(need, ...days.map((d) => d.kcal)) * 1.05;
+    $("#weekAvg").textContent = logged.length ? `有紀錄的 ${logged.length} 天平均 ${fmt(logged.reduce((t, d) => t + d.kcal, 0) / logged.length)} 大卡` : "";
+    $("#weekChart").innerHTML = days.map((d) => `<li><button type="button" data-goto-day="${d.s}">
+        <span class="wk-day">${dayName(d.s)}<small>週${d.wd}</small></span>
+        <span class="wk-track"><span class="wk-fill ${d.kcal > need ? "over" : ""}" style="width:${d.kcal / max * 100}%"></span><i class="wk-need" style="left:${need / max * 100}%"></i></span>
+        <span class="wk-kcal">${d.n ? `${fmt(d.kcal)}<small>大卡</small>` : "<small>沒有紀錄</small>"}</span></button></li>`).join("");
+    $("#weekHint").textContent = `直線是你的每日建議量 ${fmt(need)} 大卡。點某一天可以看當天的紀錄。`;
+    // 預訂紀錄：新的在上面
+    const hist = [...reservationsAll].sort((a, b) => b.at.localeCompare(a.at));
+    $("#historyCount").textContent = hist.length ? `${hist.length} 筆` : "";
+    $("#historyList").innerHTML = hist.length ? hist.map((r) => {
+      const its = r.items || r.itemIds.map((id) => items.find((x) => x.id === id)).filter(Boolean);
+      const t = new Date(r.at).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", hour12: false });
+      return `<li><span class="h-date">${dayName(dayOf(r.at))}<small>${t}</small></span>
+        <span class="h-items">${[...new Set(its.map((x) => x.shop))].map((sid) => `${esc(shortName(shopById[sid] || { name: sid }))}：${its.filter((x) => x.shop === sid).map((x) => esc(x.name)).join("、")}`).join("；")}</span>
+        <span class="h-total">$${its.reduce((s, x) => s + x.deal, 0)}</span><b class="h-code" title="取餐碼">${esc(r.code)}</b></li>`;
+    }).join("") : `<li class="empty">還沒有預訂過。到剩食地圖或組一餐預訂惜食。</li>`;
+    // 收藏
+    const groups = [
+      ["常用餐點", MEALS.filter((m) => favs.meals.includes(m.name)).map((m) => m.name), "nutri"],
+      ["店家菜單", MENU.filter((x) => favs.menu.includes(x.id)).map((x) => `${shortName(shopById[x.shop])}・${x.name}`), "nutri"],
+      ["食譜", RECIPES.filter((r) => favs.recipes.includes(r.name)).map((r) => r.name), "recipe"],
+    ];
+    const where = (view) => (view === "recipe" ? "剩食料理" : "我的營養");
+    $("#favList").innerHTML = groups.map(([h, list, view]) => `<section><h4>${h}<small>${list.length}</small></h4>${list.length
+      ? `<ul>${list.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>`
+      : `<p class="hint">還沒有收藏。在${where(view)}點 ☆ 就能收藏。</p>`}<a class="linklike" href="#${view}">前往${where(view)}</a></section>`).join("");
+  }
+  $("#weekChart").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-goto-day]"); if (!b) return;
+    viewDate = b.dataset.gotoDay;
+    location.hash = "nutri";
+  });
+
+  // ---------- 手機 App（PWA）：離線快取與「安裝成 App」 ----------
+  function setupApp() {
+    const secure = location.protocol === "https:" || ["127.0.0.1", "localhost"].includes(location.hostname);
+    if ("serviceWorker" in navigator && secure) navigator.serviceWorker.register("sw.js").catch(() => { /* 不支援時照常當網頁用 */ });
+    const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+    const btn = $("#installApp");
+    if (standalone) return;
+    // Android／電腦版 Chrome：瀏覽器判斷可以安裝時才出現按鈕
+    let prompt = null;
+    window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); prompt = e; btn.hidden = false; });
+    // iPhone 的 Safari 沒有安裝視窗，改成說明怎麼加到主畫面
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    if (ios) { btn.hidden = false; btn.textContent = "加到主畫面"; }
+    btn.addEventListener("click", async () => {
+      if (prompt) { prompt.prompt(); await prompt.userChoice; prompt = null; btn.hidden = true; return; }
+      toast("用 Safari 打開本站，按下方「分享」，再選「加入主畫面」。");
+    });
+    window.addEventListener("appinstalled", () => { btn.hidden = true; toast("已安裝，之後可以從主畫面開啟。"); });
   }
 
   // ---------- 資料來源 ----------
@@ -662,6 +851,10 @@
     renderAll();
     renderRecipes();
     renderData();
+    $("#accountName").textContent = me ? me.name : "登入";
+    setupApp();
+    $("#favOnlyWrap").hidden = !me;
+    try { const m = sessionStorage.getItem("re_flash"); if (m) { sessionStorage.removeItem("re_flash"); setTimeout(() => toast(m), 300); } } catch { /* 不支援時略過 */ }
     if (viewFromHash() !== "map") showView(viewFromHash());
   })();
 })();
