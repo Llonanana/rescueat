@@ -15,6 +15,7 @@
   --green-bg: #E6F0E9;
   --orange: #C95F06;       /* 價格 */
   --orange-d: #9F4E05;     /* 小字的時間與提醒 */
+  --orange-bg: #FBEFE3;
   --red: #B23A22;
   --focus: #2F6FEB;
   --font: "Noto Sans TC", system-ui, sans-serif;
@@ -232,9 +233,9 @@ select:focus, input:focus { border-color: var(--green); outline: 1px solid var(-
 .shop-pin.is-on .dot { background: var(--ink); }
 .shop-pin:not(.live).is-on .lbl b { font-weight: 700; }
 .zoom-lo .shop-pin:not(.live) .lbl { display: none; }
-.zoom-dot .shop-pin.live .lbl, .zoom-dot .gate-pin { display: none; }
-.zoom-dot .shop-pin.live, .zoom-dot .shop-pin.live.pin-nw, .zoom-dot .shop-pin.live.pin-sw, .zoom-dot .shop-pin.live.pin-se { transform: translate(-7px, -7px); }
-.zoom-dot .shop-pin.live::after, .zoom-dot .shop-pin.live.pin-nw::after, .zoom-dot .shop-pin.live.pin-sw::after, .zoom-dot .shop-pin.live.pin-se::after {
+.zoom-dot .shop-pin.live:not(.has-order) .lbl, .zoom-dot .gate-pin { display: none; }
+.zoom-dot .shop-pin.live:not(.has-order), .zoom-dot .shop-pin.live:not(.has-order).pin-nw, .zoom-dot .shop-pin.live:not(.has-order).pin-sw, .zoom-dot .shop-pin.live:not(.has-order).pin-se { transform: translate(-7px, -7px); }
+.zoom-dot .shop-pin.live:not(.has-order)::after, .zoom-dot .shop-pin.live:not(.has-order).pin-nw::after, .zoom-dot .shop-pin.live:not(.has-order).pin-sw::after, .zoom-dot .shop-pin.live:not(.has-order).pin-se::after {
   position: static; display: block; width: 14px; height: 14px; border: 2px solid #fff; border-radius: 50%; background: var(--orange); box-shadow: 0 1px 3px rgba(20, 30, 20, .35);
 }
 .gate-pin { position: absolute; transform: translate(-50%, -50%); background: var(--ink); color: #fff; font: 500 11px var(--font); padding: 1px 6px; border-radius: 2px; white-space: nowrap; }
@@ -440,6 +441,10 @@ select:focus, input:focus { border-color: var(--green); outline: 1px solid var(-
 .rank { list-style: none; margin: 8px 0 0; padding: 0; font-size: .88rem; color: var(--ink-2); columns: 2; column-gap: 48px; }
 .rank li { display: flex; align-items: baseline; gap: 6px; padding: 3px 0; break-inside: avoid; }
 .rank b { font: 600 1rem var(--num); color: var(--ink); white-space: nowrap; }
+.rank li > span { display: grid; min-width: 0; }
+.rank small { font-size: .74rem; color: var(--muted); line-height: 1.4; }
+.rank .linklike { text-align: left; color: var(--ink); text-decoration: none; font-size: .92rem; }
+.rank .linklike:hover { color: var(--green); text-decoration: underline; }
 .table-wrap { overflow-x: auto; }
 .sources { width: 100%; min-width: 600px; border-collapse: collapse; font-size: .86rem; }
 .sources th { text-align: left; font-size: .76rem; font-weight: 500; color: var(--muted); padding: 6px 12px 6px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
@@ -480,7 +485,7 @@ select:focus, input:focus { border-color: var(--green); outline: 1px solid var(-
 .wk-kcal { text-align: right; font: 600 1.05rem var(--num); font-variant-numeric: tabular-nums; }
 .wk-kcal small { font: 400 .72rem var(--font); color: var(--muted); margin-left: 2px; }
 .history { list-style: none; margin: 0; padding: 0; }
-.history li:not(.empty) { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto auto; align-items: center; gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--line-2); font-size: .88rem; }
+.history li:not(.empty) { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto auto auto; align-items: center; gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--line-2); font-size: .88rem; }
 .h-date { display: grid; line-height: 1.3; }
 .h-date small { font-size: .72rem; color: var(--muted); }
 .h-items { min-width: 0; color: var(--ink-2); }
@@ -528,6 +533,269 @@ dialog::backdrop { background: rgba(27, 42, 34, .5); }
 .pickup-code::before, .pickup-code::after { content: ""; position: absolute; top: 50%; width: 14px; height: 14px; margin-top: -7px; border-radius: 50%; background: rgba(27, 42, 34, .5); }
 .pickup-code::before { left: -27px; }
 .pickup-code::after { right: -27px; }
+/* 預訂完成後的說明：記入營養、取餐路線、點數 */
+.done-list { list-style: none; padding: 0 !important; margin: 12px 0 0 !important; display: grid; gap: 6px; font-size: .86rem !important; color: var(--ink-2); }
+.done-list li { padding-left: 18px; position: relative; line-height: 1.5; }
+.done-list li::before { content: "✓"; position: absolute; left: 0; color: var(--green); font-weight: 700; }
+.done-list b { color: var(--ink); }
+.done-list .badge-new { color: #8A6508; }
+.done-list .badge-new::before { content: "★"; color: #B8860B; }
+
+/* ================= 惜食時段 ================= */
+/* 19:00 前：只有原價（不劃掉），惜食價寫在下方當預告 */
+.price.is-before b { width: auto; min-width: 2.35em; color: var(--ink); font-size: 1.3rem; }
+.row-soon { font-size: .8rem; color: var(--orange-d); }
+.row-soon b { font: 700 1rem var(--num); color: var(--orange); }
+.soon { font-size: .74rem; line-height: 1.25; color: var(--muted); text-align: center; border: 1px dashed var(--line); border-radius: 3px; padding: 4px 6px; }
+.demo-time { margin-top: 10px; padding: 5px 12px; background: var(--paper); border: 1px dashed var(--green); border-radius: 3px; color: var(--green); font-size: .84rem; cursor: pointer; }
+.demo-time:hover { background: var(--green-bg); }
+.combo-total span small { display: block; font-size: .72rem; font-weight: 400; color: var(--orange-d); }
+/* 有預訂的店：綠色標籤寫取餐碼 */
+.shop-pin.live.has-order .lbl { background: var(--green); }
+.shop-pin.live.has-order::after { border-top-color: var(--green); }
+.shop-pin.live.has-order.pin-sw::after, .shop-pin.live.has-order.pin-se::after { border-bottom-color: var(--green); }
+.from-rsv { color: var(--green); font-weight: 500; }
+
+/* ================= 惜食點數與徽章 ================= */
+.ach { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 16px 40px; margin-top: 14px; }
+.ach > .hint { grid-column: 1 / -1; margin: 0; }
+.ach-level p { margin: 0; }
+.ach-name { font-weight: 700; color: var(--green); }
+.ach-pts { display: flex; align-items: baseline; gap: 8px; }
+.ach-pts b { font: 700 3rem/1.05 var(--num); font-variant-numeric: tabular-nums; }
+.ach-pts span { font-size: .82rem; color: var(--muted); }
+.ach-bar { height: 8px; background: var(--line-2); margin: 8px 0 2px; }
+.ach-bar span { display: block; height: 100%; background: var(--green); }
+.ach-impact { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); margin: 0; align-content: start; border-top: 1px solid var(--line); }
+.ach-impact div { padding: 8px 0; border-bottom: 1px solid var(--line-2); }
+.ach-impact dt { font-size: .74rem; color: var(--muted); }
+.ach-impact dd { margin: 0; font: 700 1.5rem/1.15 var(--num); font-variant-numeric: tabular-nums; }
+.ach-impact dd small { font: 400 .72rem var(--font); color: var(--muted); margin-left: 3px; }
+.badges { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.badges li { display: grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 10px; align-items: center; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 3px; color: var(--muted); }
+.badges li b { font-size: .86rem; font-weight: 500; line-height: 1.35; }
+.badges li small { grid-column: 2; font-size: .72rem; line-height: 1.4; }
+.badge-mark { grid-row: span 2; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; border: 2px dashed var(--line); font: 700 1rem var(--num); }
+.badges li.is-on { border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
+.badges li.is-on b { font-weight: 700; }
+.badges li.is-on small { color: var(--green); }
+.badges li.is-on .badge-mark { border: 0; background: #B8860B; color: #fff; box-shadow: inset 0 0 0 3px rgba(255, 255, 255, .45); }
+
+/* ================= 惜食圈 ================= */
+.composer { display: grid; gap: 10px; }
+.composer[hidden], .composer [data-for][hidden] { display: none; }
+.photo-pick { position: relative; display: grid; place-items: center; min-height: 92px; border: 1px dashed var(--line); border-radius: 3px; background: var(--paper); cursor: pointer; overflow: hidden; }
+.photo-pick:hover { border-color: var(--green); }
+.photo-pick:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+.photo-pick input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.photo-pick img[hidden] { display: none; }
+.composer textarea { font: inherit; font-size: .92rem; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 3px; padding: 8px 10px; resize: vertical; }
+.composer textarea:focus { border-color: var(--green); outline: 1px solid var(--green); }
+.field { display: grid; gap: 4px; font-size: .8rem; color: var(--muted); }
+.field select { width: 100%; }
+.rate { display: flex; align-items: center; gap: 2px; margin-top: 8px; font-size: .8rem; color: var(--muted); }
+.rate span { margin-right: 8px; }
+.rate button { background: none; border: 0; padding: 0 2px; font-size: 1.35rem; line-height: 1; color: var(--line); cursor: pointer; }
+.rate button.is-on { color: #B8860B; }
+.composer .btn { justify-self: start; padding: 8px 26px; }
+.composer-guest { display: block; }
+.composer-guest[hidden] { display: none; }
+/* 點數卡（惜食圈最上方，平常收成一行）與剩食地圖上方的一行 */
+.reward { background: var(--paper); border: 1px solid var(--line); border-radius: 3px; }
+.reward > summary { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: baseline; column-gap: 10px; row-gap: 6px; padding: 10px 14px; cursor: pointer; list-style: none; }
+.reward > summary::-webkit-details-marker { display: none; }
+.reward-head { font-size: .82rem; font-weight: 700; color: var(--green); }
+.reward-sum { font-size: .84rem; color: var(--ink-2); }
+.reward-sum b { font: 700 1.3rem/1 var(--num); color: var(--ink); }
+.reward-more { font-size: .8rem; color: var(--green); }
+.reward-more::after { content: " ›"; }
+.reward[open] .reward-more::after { content: " ⌃"; }
+.reward > summary .ach-bar { grid-column: 1 / -1; display: block; height: 6px; margin: 0; }
+.reward > summary .ach-bar span { display: block; height: 100%; background: var(--green); }
+.reward[open] > summary { border-bottom: 1px solid var(--line-2); }
+.reward > :not(summary) { margin: 10px 14px 0; }
+.reward > :last-child { margin-bottom: 14px; }
+.reward > .linklike { display: inline-block; font-size: .82rem; }
+.reward > .btn { display: inline-flex; }
+.reward-next { font-size: .8rem; color: var(--ink-2); }
+.earn { list-style: none; margin: 4px 0; padding: 0; border-top: 1px solid var(--line-2); font-size: .88rem; }
+.earn li { display: flex; align-items: baseline; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line-2); }
+.earn b { font: 700 1.05rem var(--num); color: var(--green); }
+.reward-badge { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+.reward-badge > span:last-child { display: grid; font-size: .74rem; line-height: 1.4; }
+.reward-badge b { font-size: .88rem; color: var(--ink); }
+.reward-strip { display: flex; width: 100%; border: 0; text-align: left; font-family: inherit; cursor: pointer; align-items: baseline; gap: 8px; margin: 0 0 14px; padding: 7px 12px; background: var(--green-bg); border-radius: 3px; color: var(--ink); text-decoration: none; font-size: .84rem; line-height: 1.5; }
+.reward-strip:hover { background: #D9E8DE; }
+.reward-strip b { flex: none; color: var(--green); }
+.reward-strip span { min-width: 0; color: var(--ink-2); }
+.reward-strip i { margin-left: auto; flex: none; font-style: normal; color: var(--green); font-size: .8rem; }
+#postDialog { max-width: 460px; }
+.composer.dlg h3 { margin-bottom: 2px; }
+.composer .dlg-actions { margin-top: 4px; }
+.composer .dlg-actions .btn { justify-self: auto; }
+.made-it { display: block; margin: 10px 0 2px; font-size: .82rem; text-align: left; }
+.order-share { justify-self: start; font-size: .78rem !important; margin-top: 2px; }
+.h-share { font-size: .8rem; white-space: nowrap; }
+.recipe.is-flash { box-shadow: 0 0 0 3px var(--green); transition: box-shadow .3s; }
+
+/* ================= 惜食圈：浮動按鈕＋右側面板 ================= */
+/* 浮動按鈕：吉祥物大頭貼，左邊一個朝頭像收尖角的對話泡泡 */
+.community-fab {
+  position: fixed; right: max(24px, env(safe-area-inset-right)); bottom: max(24px, env(safe-area-inset-bottom)); z-index: 1040;
+  display: flex; align-items: center; gap: 10px; padding: 0; background: none; border: 0; cursor: pointer; font: inherit; text-align: left;
+}
+.community-fab[hidden] { display: none; }
+.fab-bubble {
+  display: grid; line-height: 1.3; padding: 7px 14px 8px; background: var(--paper); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 16px 16px 4px 16px; box-shadow: 0 2px 10px rgba(20, 30, 20, .14);
+  transition: transform .15s ease-out;
+}
+.fab-bubble b { font-size: .92rem; }
+.fab-bubble small { font-size: .74rem; color: var(--muted); }
+.fab-bubble small.is-new { color: var(--orange-d); font-weight: 700; }
+.fab-face { position: relative; flex: none; width: 66px; height: 66px; border-radius: 50%; background: var(--paper); box-shadow: 0 0 0 3px var(--green), 0 4px 14px rgba(20, 50, 30, .3); transition: transform .2s ease-out; }
+/* 圖檔外圈有留白：放大 1.3 倍再裁成圓形，讓吉祥物填滿頭像 */
+.fab-face img { display: block; width: 100%; height: 100%; object-fit: cover; transform: scale(1.3); clip-path: circle(38.5% at 50% 50%); }
+.fab-badge { position: absolute; top: -4px; right: -4px; min-width: 22px; height: 22px; padding: 0 6px; display: grid; place-items: center; border-radius: 999px; background: var(--orange); color: #fff; font: 700 .82rem/1 var(--num); font-style: normal; box-shadow: 0 0 0 2px var(--paper); }
+.fab-badge[hidden] { display: none; }
+.community-fab:hover .fab-face { transform: rotate(-8deg) scale(1.05); }
+.community-fab:hover .fab-bubble { transform: translateX(-3px); }
+.community-fab:focus-visible { outline: none; }
+.community-fab:focus-visible .fab-face { box-shadow: 0 0 0 3px var(--green), 0 0 0 6px var(--focus); }
+.drawer-scrim { position: fixed; inset: 0; z-index: 1049; background: rgba(27, 42, 34, .35); }
+.drawer-scrim[hidden] { display: none; }
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 1050; width: min(460px, 100%);
+  display: flex; flex-direction: column; background: var(--page); box-shadow: -8px 0 32px rgba(20, 30, 20, .25);
+  transform: translateX(24px); opacity: 0; transition: transform .2s ease-out, opacity .2s ease-out;
+}
+.drawer.is-open { transform: none; opacity: 1; }
+.drawer[hidden] { display: none; }
+.drawer-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 16px 18px calc(28px + env(safe-area-inset-bottom)); }
+body.drawer-open { overflow: hidden; }
+/* 面板標題列：名稱＋一句說明，右邊關閉 */
+.drawer-head { flex: none; display: flex; align-items: center; gap: 12px; padding: 14px 18px 12px; padding-top: max(14px, env(safe-area-inset-top)); background: var(--paper); border-bottom: 1px solid var(--line); }
+.dh-title { flex: 1; min-width: 0; }
+.dh-title h2 { font-size: 1.25rem; line-height: 1.25; }
+.dh-title p { margin: 1px 0 0; font-size: .78rem; color: var(--muted); }
+.drawer-close { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border: 0; border-radius: 50%; background: var(--page); color: var(--ink-2); cursor: pointer; }
+.drawer-close:hover { background: var(--line-2); color: var(--ink); }
+.drawer-close svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+/* 線條圖示共用 */
+.share-quick svg, .kind-pick svg, .photo-hint svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+/* 大頭貼：依名字配四種顏色之一 */
+.avatar { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; font-weight: 700; font-size: .92rem; background: var(--green-bg); color: var(--green); }
+.av-1 { background: #FBEBDD; color: #9F4E05; }
+.av-2 { background: #E3ECF5; color: #2A5D8F; }
+.av-3 { background: #EFEBDD; color: #6E5A12; }
+.av-guest { background: var(--line-2); color: var(--muted); }
+
+/* 分享框：像社群 App 的「在想什麼？」，下面三個快速類型 */
+.share-box { background: var(--paper); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 1px 2px rgba(20, 30, 20, .04); }
+.share-prompt { width: 100%; display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: none; border: 0; text-align: left; font: inherit; font-size: .92rem; color: var(--muted); cursor: pointer; }
+.share-prompt > span:last-child { flex: 1; padding: 8px 14px; background: var(--page); border-radius: 999px; }
+.share-prompt:hover > span:last-child { background: var(--line-2); color: var(--ink-2); }
+.share-quick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line-2); }
+.share-quick button { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 4px; background: none; border: 0; font: inherit; font-size: .82rem; color: var(--ink-2); cursor: pointer; }
+.share-quick button + button { border-left: 1px solid var(--line-2); }
+.share-quick button:hover { background: var(--green-bg); color: var(--green); }
+.share-quick svg { width: 18px; height: 18px; }
+.share-quick [data-new-post="cook"] svg { color: var(--green); }
+.share-quick [data-new-post="unbox"] svg { color: var(--orange); }
+.share-quick [data-new-post="tip"] svg { color: #2A5D8F; }
+
+/* 點數卡（收成一行） */
+#myReward { margin-top: 12px; }
+.reward { border-radius: 6px; }
+.photo-pick img { display: block; width: 100%; max-height: 240px; object-fit: cover; }
+
+/* 分類：膠囊按鈕，捲動時固定在面板上方 */
+.feed-filter { position: sticky; top: -16px; z-index: 2; display: flex; gap: 6px; margin: 16px -18px 0; padding: 10px 18px; background: var(--page); overflow-x: auto; scrollbar-width: none; }
+.feed-filter::-webkit-scrollbar { display: none; }
+.feed-filter button { flex: none; display: inline-flex; align-items: baseline; gap: 5px; padding: 6px 13px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); font: inherit; font-size: .84rem; color: var(--ink-2); cursor: pointer; }
+.feed-filter button:hover { border-color: var(--ink-2); }
+.feed-filter button small { font: 600 .82rem var(--num); color: var(--muted); }
+.feed-filter button[aria-selected="true"] { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 700; }
+.feed-filter button[aria-selected="true"] small { color: rgba(255, 255, 255, .7); }
+
+/* 貼文卡 */
+.feed { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 14px; }
+.post { --kind: var(--green); background: var(--paper); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; box-shadow: 0 1px 2px rgba(20, 30, 20, .04); }
+.post.k-unbox { --kind: var(--orange-d); }
+.post.k-tip { --kind: #2A5D8F; }
+.post-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px 0; }
+.who { flex: 1; display: grid; min-width: 0; line-height: 1.35; }
+.who b { font-size: .92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.who small { font-size: .74rem; color: var(--muted); }
+.kind-tag { flex: none; font-size: .72rem; font-weight: 700; color: var(--kind); background: color-mix(in srgb, var(--kind) 10%, #fff); border-radius: 999px; padding: 2px 9px; }
+.post-del { flex: none; background: none; border: 0; padding: 4px; font: inherit; font-size: .76rem; color: var(--muted); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.post-del:hover { color: var(--red); }
+.post-img { display: block; width: 100%; max-height: 380px; object-fit: cover; margin-top: 12px; }
+.post-text { margin: 0; padding: 10px 14px 0; font-size: .94rem; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* 附件：食譜（左側設備色條）或開箱品項 */
+.post-att { display: flex; align-items: center; gap: 12px; width: calc(100% - 28px); margin: 12px 14px 0; padding: 10px 12px; background: var(--page); border: 0; border-left: 3px solid var(--eq, var(--orange)); border-radius: 4px; text-align: left; font: inherit; color: var(--ink); }
+button.post-att { cursor: pointer; }
+button.post-att:hover { background: var(--green-bg); }
+.att-body { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.att-body .equip { justify-self: start; margin-bottom: 2px; }
+.att-body b { font-size: .92rem; }
+.att-body small { font-size: .76rem; color: var(--muted); }
+.att-go { flex: none; font-size: .8rem; font-weight: 500; color: var(--green); }
+.att-left { flex: none; font-size: .76rem; font-weight: 700; color: var(--orange-d); }
+.stars { color: #B8860B; letter-spacing: 1px; font-size: .92rem; line-height: 1.3; }
+.stars i { font-style: normal; color: var(--line); }
+/* 動作列：讚＋一個和貼文有關的動作 */
+.post-actions { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 6px 10px; border-top: 1px solid var(--line-2); }
+.like { display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 4px 10px; background: none; border: 0; border-radius: 999px; font: inherit; color: var(--muted); cursor: pointer; }
+.like svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.like svg .fill { fill: currentColor; }
+.like span { font: 600 1rem var(--num); }
+.like:hover { background: #FBECE8; color: var(--red); }
+.like.is-on { color: var(--red); }
+.post-act { margin-left: auto; min-height: 36px; padding: 4px 14px; background: none; border: 1px solid var(--line); border-radius: 999px; font: inherit; font-size: .82rem; color: var(--green); cursor: pointer; }
+.post-act:hover { border-color: var(--green); background: var(--green-bg); }
+.feed-empty { display: grid; justify-items: center; gap: 6px; padding: 32px 16px; background: var(--paper); border: 1px dashed var(--line); border-radius: 6px; text-align: center; }
+.feed-empty b { color: var(--ink); }
+.feed-empty span { font-size: .86rem; }
+.feed-empty .btn { margin-top: 6px; }
+
+/* 排行：前三名獎牌色 */
+.rank-box { margin-top: 28px; }
+.rank-box h3 { display: flex; align-items: baseline; gap: 8px; font-size: .98rem; padding-bottom: 8px; border-bottom: 2px solid var(--ink); }
+.rank-box h3 small { font-size: .72rem; font-weight: 400; color: var(--muted); border: 1px solid var(--line); border-radius: 2px; padding: 0 5px; }
+.rank-list { list-style: none; margin: 0; padding: 0; }
+.rank-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line-2); font-size: .9rem; }
+.rank-list .n { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font: 700 .86rem var(--num); color: var(--muted); }
+.rank-list .top .n { color: #fff; }
+.rank-list .top-1 .n { background: #C9A227; }
+.rank-list .top-2 .n { background: #9AA3A8; }
+.rank-list .top-3 .n { background: #B0763F; }
+.rank-list .avatar { width: 30px; height: 30px; font-size: .8rem; }
+.rk-name { flex: 1; min-width: 0; }
+.rk-name small { margin-left: 6px; font-size: .7rem; font-weight: 700; color: #fff; background: var(--green); border-radius: 999px; padding: 1px 7px; }
+.rank-list b { font: 700 1.05rem var(--num); font-variant-numeric: tabular-nums; }
+.rank-list b small { font: 400 .72rem var(--font); color: var(--muted); margin-left: 2px; }
+.rank-list .is-me { background: var(--green-bg); margin: 0 -8px; padding-inline: 8px; border-radius: 4px; }
+.drawer-note { margin-top: 14px; }
+
+/* 發文視窗：三張類型卡、照片區、字數 */
+.kind-pick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.kind-pick button { display: grid; justify-items: center; gap: 2px; padding: 10px 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); font: inherit; color: var(--ink-2); cursor: pointer; }
+.kind-pick button:hover { border-color: var(--ink-2); }
+.kind-pick svg { width: 22px; height: 22px; margin-bottom: 2px; }
+.kind-pick b { font-size: .86rem; }
+.kind-pick small { font-size: .7rem; color: var(--muted); }
+.kind-pick button[aria-selected="true"] { border: 2px solid var(--green); padding: 9px 3px 7px; background: var(--green-bg); color: var(--green); }
+.photo-pick { min-height: 110px; border-radius: 6px; }
+.photo-hint { display: grid; justify-items: center; gap: 2px; color: var(--green); }
+.photo-hint svg { width: 26px; height: 26px; }
+.photo-hint b { font-size: .88rem; }
+.photo-hint small { font-size: .74rem; color: var(--muted); }
+.photo-pick.has-img .photo-hint { display: none; }
+.text-wrap { position: relative; display: grid; }
+.text-wrap textarea { padding-bottom: 22px; border-radius: 6px; }
+.text-count { position: absolute; right: 10px; bottom: 6px; font: 500 .76rem var(--num); color: var(--muted); }
 
 /* ================= 平板與手機 ================= */
 @media (max-width: 1100px) {
@@ -569,7 +837,7 @@ dialog::backdrop { background: rgba(27, 42, 34, .5); }
   .slogan { display: none; }
   .account-btn { margin-left: auto; }
   .fav-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
-  .history li:not(.empty) { grid-template-columns: 52px minmax(0, 1fr) auto; }
+  .history li:not(.empty) { grid-template-columns: 52px minmax(0, 1fr) auto auto; gap: 10px; }
   .history .h-total { display: none; }
   .week button { grid-template-columns: 52px minmax(0, 1fr) 76px; gap: 10px; }
   .slogan b { display: none; }
@@ -616,6 +884,24 @@ dialog::backdrop { background: rgba(27, 42, 34, .5); }
   .pair { gap: 36px; }
   .rank { columns: 1; }
   .bar-row { grid-template-columns: 68px 1fr 124px; gap: 8px; font-size: .84rem; }
+  .ach { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .badges { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .badges li { grid-template-columns: 34px minmax(0, 1fr); padding: 8px; }
+  .badge-mark { width: 34px; height: 34px; }
+  /* 手機：浮動按鈕縮成圓形圖示，放在底部分頁列上方；面板佔滿整個畫面 */
+  .community-fab { right: 14px; bottom: calc(72px + env(safe-area-inset-bottom)); }
+  .fab-bubble { position: absolute; width: 1px; height: 1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .fab-face { width: 56px; height: 56px; }
+  .drawer { width: 100%; box-shadow: none; }
+  .drawer-close { width: 42px; height: 42px; }
+  .drawer-body { padding-inline: 14px; }
+  .feed-filter { margin-inline: -14px; padding-inline: 14px; }
+  .feed-filter button, .share-quick button { min-height: 40px; }
+  .like, .post-act { min-height: 40px; }
+  .rate button { min-width: 36px; min-height: 40px; }
+  .reward-strip { flex-wrap: wrap; row-gap: 0; }
+  .earn li { padding: 10px 0; }
+  .made-it, .order-share { padding-block: 8px; }
 }
 @media (max-width: 560px) {
   .recipe-ings { min-height: 0; }   /* 手機一欄，不需要對齊 */

@@ -67,16 +67,18 @@
           <div class="tonight" id="tonight" aria-live="polite"></div>
           <section class="howto" id="howto" aria-label="使用方式" hidden>
             <ol>
-              <li><b>挑一份惜食</b><span>從地圖或下方清單找想吃的，價格是打烊前的出清價</span></li>
-              <li><b>按「預訂」</b><span>拿到 4 位數取餐碼，也可以到「組一餐」一次配好一整餐</span></li>
+              <li><b>挑一份惜食</b><span>每天 19:00 起，地圖和清單會出現打烊前的出清價</span></li>
+              <li><b>按「預訂」</b><span>拿到 4 位數取餐碼，熱量自動記進「我的營養」；也可以到「組一餐」一次配好一整餐</span></li>
               <li><b>到店取餐</b><span>在標示的時間前出示取餐碼，付款取餐</span></li>
             </ol>
             <button type="button" class="howto-close" id="howtoClose" aria-label="知道了，關閉說明">知道了</button>
           </section>
+          <button type="button" class="reward-strip" id="rewardStrip" data-open-community></button>
           <section class="orders" id="myOrders" aria-label="我的預訂" hidden></section>
           <details class="explain">
             <summary>什麼是惜食價？</summary>
             <p>店家打烊前，把當天沒賣完、但仍新鮮可以吃的餐點打折出清，這個價格就是<b>惜食價</b>。你用比較便宜的價格吃到一般餐點，店家少丟一份食物、多一筆收入。</p>
+            <p>惜食價每天 <b>19:00</b> 開始，之前顯示原價、還不能預訂。18:30 就打烊的 GET POWER 提早到 17:30 開始。</p>
             <p>預訂後會拿到 4 位數取餐碼，在標示的時間前到店出示、付款取餐。這個示範版本以原價 8 折計算，正式上線後由店家自己定價。</p>
           </details>
           <div class="filters">
@@ -290,10 +292,16 @@
               <li><b>個人資料同步</b><span>身高、體重、活動量存在帳號裡，登入就自動帶入。</span></li>
               <li><b>預訂紀錄</b><span>列出過去預訂過的惜食和取餐碼。</span></li>
               <li><b>收藏</b><span>把常吃的餐點、店家品項和喜歡的食譜加到收藏，記錄時排在最上面。</span></li>
+              <li><b>惜食點數與徽章</b><span>預訂惜食、記錄飲食、在惜食圈分享都能累積點數，看得到自己救下幾份食物、減少多少碳排。</span></li>
+              <li><b>惜食圈</b><span>分享用剩食做的料理、惜食開箱，替別人的貼文按讚。</span></li>
             </ul>
           </div>
           <div id="accountMember" hidden>
-            <h3 class="subhead">最近 7 天<small id="weekAvg"></small></h3>
+            <h3 class="subhead">我的惜食成就</h3>
+            <div class="ach" id="achBox"></div>
+            <h3 class="subhead">徽章<small id="badgeCount"></small></h3>
+            <ul class="badges" id="badgeList"></ul>
+            <h3 class="subhead">最近 7 天熱量<small id="weekAvg"></small></h3>
             <ol class="week" id="weekChart"></ol>
             <p class="hint" id="weekHint"></p>
             <h3 class="subhead">預訂紀錄<small id="historyCount"></small></h3>
@@ -325,7 +333,7 @@
           <section class="truth-demo">
             <h3>示範用的假設值</h3>
             <ul>
-              <li>惜食價（原價 8 折，四捨五入到整數元）</li>
+              <li>惜食價（原價 8 折，四捨五入到整數元；19:00 起）</li>
               <li>剩餘份數</li>
               <li>取餐截止時間</li>
               <li>預訂與取餐碼（只存在這台裝置）</li>
@@ -344,7 +352,8 @@
             <div class="hbars" id="groupBars"></div>
           </section>
         </div>
-        <h3 class="subhead">每 100 大卡蛋白質最多的蛋白質類食材</h3>
+        <h3 class="subhead">今晚哪一樣惜食最划算：每花 $10 買到的蛋白質</h3>
+        <p class="hint">用惜食價計算，數字越大代表同樣的錢買到越多蛋白質。點品名可以到地圖上看這家店。</p>
         <ol class="rank" id="topProtein"></ol>
         <h3 class="subhead">資料來源</h3>
         <div class="table-wrap">
@@ -376,6 +385,80 @@
       <menu class="dlg-actions">
         <button value="cancel" class="btn ghost">取消</button>
         <button value="confirm" class="btn primary" id="dlgConfirm">確認預訂</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <!-- 惜食圈：右下角的浮動按鈕，點開從右側滑出，不佔分頁 -->
+  <!-- 吉祥物大頭貼＋對話泡泡；有新貼文時頭像右上角出現橘色數字 -->
+  <button type="button" class="community-fab" id="communityFab" data-open-community aria-haspopup="dialog" aria-controls="community">
+    <span class="fab-bubble"><b>惜食圈</b><small id="fabNote">看大家今晚吃什麼</small></span>
+    <span class="fab-face"><img src="img/logo.png" alt="" width="64" height="64"><i class="fab-badge" id="fabBadge" hidden></i></span>
+  </button>
+  <div class="drawer-scrim" id="communityScrim" hidden></div>
+  <aside class="drawer" id="community" role="dialog" aria-modal="true" aria-labelledby="h-community" hidden>
+    <header class="drawer-head">
+      <div class="dh-title">
+        <h2 id="h-community">惜食圈</h2>
+        <p>同學的剩食料理、惜食開箱與省錢撇步</p>
+      </div>
+      <button type="button" class="drawer-close" id="communityClose" aria-label="關閉惜食圈"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </header>
+    <div class="drawer-body" id="communityBody">
+      <section class="share-box" aria-label="分享到惜食圈">
+        <button type="button" class="share-prompt" id="newPost"><span class="avatar" id="shareAvatar" aria-hidden="true">你</span><span>今晚吃了什麼？分享給同學</span></button>
+        <div class="share-quick">
+          <button type="button" data-new-post="cook"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4Z"/><circle cx="12" cy="13" r="3.5"/></svg>剩食料理</button>
+          <button type="button" data-new-post="unbox"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l9-4 9 4v9l-9 4-9-4Z"/><path d="M3 8l9 4 9-4M12 12v9"/></svg>惜食開箱</button>
+          <button type="button" data-new-post="tip"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3Z"/></svg>省錢撇步</button>
+        </div>
+      </section>
+      <div id="myReward"></div>
+      <div class="feed-filter" id="feedTabs" role="tablist" aria-label="貼文分類">
+        <button type="button" role="tab" aria-selected="true" data-feed="all">全部<small></small></button>
+        <button type="button" role="tab" aria-selected="false" data-feed="cook">剩食料理<small></small></button>
+        <button type="button" role="tab" aria-selected="false" data-feed="unbox">惜食開箱<small></small></button>
+        <button type="button" role="tab" aria-selected="false" data-feed="tip">省錢撇步<small></small></button>
+      </div>
+      <ul class="feed" id="feed"></ul>
+      <section class="rank-box" aria-labelledby="h-rank">
+        <h3 id="h-rank">惜食點數排行<small>示範</small></h3>
+        <ol class="rank-list" id="rankList"></ol>
+      </section>
+      <p class="hint drawer-note">示範版：其他同學與貼文都是示範資料，你的貼文只存在這台瀏覽器。</p>
+    </div>
+  </aside>
+
+  <dialog id="postDialog" aria-labelledby="postTitle">
+    <form class="composer dlg" id="composer" novalidate>
+      <h3 id="postTitle">分享到惜食圈</h3>
+      <div class="kind-pick" role="tablist" aria-label="貼文類型">
+        <button type="button" role="tab" aria-selected="true" data-kind="cook"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4Z"/><circle cx="12" cy="13" r="3.5"/></svg><b>剩食料理</b><small>用剩食做的菜</small></button>
+        <button type="button" role="tab" aria-selected="false" data-kind="unbox"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l9-4 9 4v9l-9 4-9-4Z"/><path d="M3 8l9 4 9-4M12 12v9"/></svg><b>惜食開箱</b><small>評今晚買的</small></button>
+        <button type="button" role="tab" aria-selected="false" data-kind="tip"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3Z"/></svg><b>省錢撇步</b><small>分享小方法</small></button>
+      </div>
+      <label class="photo-pick" id="photoPick" for="postPhoto">
+        <input type="file" id="postPhoto" accept="image/*">
+        <span class="photo-hint"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4Z"/><circle cx="12" cy="13" r="3.5"/></svg><b>加一張照片</b><small>選填，拍照或從相簿選</small></span>
+        <img id="photoPreview" alt="準備上傳的照片" hidden>
+      </label>
+      <div class="text-wrap">
+        <label for="postText" class="sr-only">內容</label>
+        <textarea id="postText" maxlength="200" rows="3" placeholder="用剩食做了什麼？用了哪些設備？"></textarea>
+        <small class="text-count" id="postCount">0／200</small>
+      </div>
+      <div data-for="cook"><label class="field">用了哪道食譜<select id="postRecipe"></select></label></div>
+      <div data-for="unbox" hidden>
+        <label class="field">開箱哪一份惜食<select id="postItem"></select></label>
+        <div class="rate" id="rateStars" role="group" aria-label="推薦程度">
+          <span>推薦程度</span>
+          <button type="button" data-rate="1" aria-label="1 顆星">★</button><button type="button" data-rate="2" aria-label="2 顆星">★</button><button type="button" data-rate="3" aria-label="3 顆星">★</button><button type="button" data-rate="4" aria-label="4 顆星">★</button><button type="button" data-rate="5" aria-label="5 顆星">★</button>
+        </div>
+      </div>
+      <p class="form-error" role="alert"></p>
+      <menu class="dlg-actions">
+        <button type="button" class="btn ghost" id="postCancel">取消</button>
+        <button class="btn" type="submit">發佈・+5 點</button>
       </menu>
     </form>
   </dialog>

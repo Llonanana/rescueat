@@ -12,21 +12,25 @@
  * 不賣的品項把 qty 改成 0。新增品項時，id 不可重複，shop 用 data/shops.js 裡的店家 id。
  */
 
+// 惜食時段：這個時間起才接受預訂（台灣時間），要和 js/config.js 的 DEAL_FROM、DEAL_FROM_SHOP 一致
+const DEAL_FROM = "19:00";
+const DEAL_FROM_SHOP = { getpower: "17:30" };
+
 const LISTING_HEAD = ["id", "shop", "name", "cat", "price", "deal", "qty", "until", "kcal", "protein", "nsrc", "nnote", "micro", "fried"];
 const RESERVATION_HEAD = ["time", "code", "itemIds", "items"];
 const FORM_ROWS = 200;      // 預先套用格式與檢查的列數
 const SEED = [
-  ["bonbox-1", "bonbox", "威力雞胸弁當", "完整餐盒", 130, 104, 2, "19:15", 504, 31, "official", "", false, false],
-  ["bonbox-2", "bonbox", "楽坡雞腿弁當", "完整餐盒", 140, 112, 1, "19:15", 557, 30, "official", "", false, false],
-  ["bonbox-3", "bonbox", "舒浮彩蔬弁當（可素）", "完整餐盒", 105, 84, 2, "19:15", 431, 15, "official", "", false, false],
-  ["bonbox-4", "bonbox", "超級白肉蛋白（無飯）", "蛋白質", 199, 159, 1, "19:15", 651, 68, "official", "", false, false],
-  ["bonbox-5", "bonbox", "加購 威力雞胸", "蛋白質", 49, 39, 3, "19:15", 73, 16, "official", "", false, false],
-  ["bonbox-6", "bonbox", "加購 楽坡雞腿", "蛋白質", 59, 47, 2, "19:15", 126, 15, "official", "", false, false],
-  ["bonbox-7", "bonbox", "加購 水煮蛋（半顆）", "蛋白質", 10, 8, 4, "19:15", 50, 5, "official", "", false, false],
-  ["bonbox-8", "bonbox", "加購 杏鮑菇", "蔬菜", 39, 31, 2, "19:15", 35, 2.7, "estimate", "官方營養表未列，以「杏鮑菇平均值」100 g 估算", false, false],
-  ["bonbox-9", "bonbox", "加購 蔬菜", "蔬菜", 30, 24, 3, "19:15", 42, 3, "official", "", false, false],
-  ["bonbox-10", "bonbox", "加購 黑金麥飯", "主食", 20, 16, 4, "19:15", 282, 6, "official", "", false, false],
-  ["bonbox-11", "bonbox", "加購 地瓜泥球", "主食", 20, 16, 3, "19:15", 46, 1, "official", "", false, false],
+  ["bonbox-1", "bonbox", "威力雞胸弁當", "完整餐盒", 130, 104, 2, "19:30", 504, 31, "official", "", false, false],
+  ["bonbox-2", "bonbox", "楽坡雞腿弁當", "完整餐盒", 140, 112, 1, "19:30", 557, 30, "official", "", false, false],
+  ["bonbox-3", "bonbox", "舒浮彩蔬弁當（可素）", "完整餐盒", 105, 84, 2, "19:30", 431, 15, "official", "", false, false],
+  ["bonbox-4", "bonbox", "超級白肉蛋白（無飯）", "蛋白質", 199, 159, 1, "19:30", 651, 68, "official", "", false, false],
+  ["bonbox-5", "bonbox", "加購 威力雞胸", "蛋白質", 49, 39, 3, "19:30", 73, 16, "official", "", false, false],
+  ["bonbox-6", "bonbox", "加購 楽坡雞腿", "蛋白質", 59, 47, 2, "19:30", 126, 15, "official", "", false, false],
+  ["bonbox-7", "bonbox", "加購 水煮蛋（半顆）", "蛋白質", 10, 8, 4, "19:30", 50, 5, "official", "", false, false],
+  ["bonbox-8", "bonbox", "加購 杏鮑菇", "蔬菜", 39, 31, 2, "19:30", 35, 2.7, "estimate", "官方營養表未列，以「杏鮑菇平均值」100 g 估算", false, false],
+  ["bonbox-9", "bonbox", "加購 蔬菜", "蔬菜", 30, 24, 3, "19:30", 42, 3, "official", "", false, false],
+  ["bonbox-10", "bonbox", "加購 黑金麥飯", "主食", 20, 16, 4, "19:30", 282, 6, "official", "", false, false],
+  ["bonbox-11", "bonbox", "加購 地瓜泥球", "主食", 20, 16, 3, "19:30", 46, 1, "official", "", false, false],
   ["getpower-12", "getpower", "椒鹽水煮雞胸餐盒", "完整餐盒", 220, 176, 2, "18:15", 605, 43, "official", "", true, false],
   ["getpower-13", "getpower", "泰式打拋雞胸餐盒", "完整餐盒", 220, 176, 1, "18:15", 596, 41, "official", "", true, false],
   ["getpower-14", "getpower", "爐烤鮮時蔬餐盒", "完整餐盒", 190, 152, 2, "18:15", 510, 16, "official", "", true, false],
@@ -98,11 +102,14 @@ function doPost(e) {
   try {
     const sheet = SpreadsheetApp.getActive().getSheetByName("listings");
     const values = sheet.getDataRange().getValues();
-    const head = values[0], idCol = head.indexOf("id"), qtyCol = head.indexOf("qty"), nameCol = head.indexOf("name");
+    const head = values[0], idCol = head.indexOf("id"), qtyCol = head.indexOf("qty"), nameCol = head.indexOf("name"), shopCol = head.indexOf("shop");
     const rowOf = (id) => values.findIndex((r, i) => i > 0 && String(r[idCol]) === String(id));
+    const now = Utilities.formatDate(new Date(), "Asia/Taipei", "HH:mm");
     for (const id of body.itemIds) {
       const row = rowOf(id);
       if (row < 0 || !(Number(values[row][qtyCol]) > 0)) return json_({ ok: false, error: `已訂完：${id}` });
+      const from = DEAL_FROM_SHOP[values[row][shopCol]] || DEAL_FROM;
+      if (now < from) return json_({ ok: false, error: `${from} 起才開放預訂` });
     }
     for (const id of body.itemIds) {
       const row = rowOf(id);
