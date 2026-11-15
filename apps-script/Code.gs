@@ -14,7 +14,9 @@
 
 // 惜食時段：這個時間起才接受預訂（台灣時間），要和 js/config.js 的 DEAL_FROM、DEAL_FROM_SHOP 一致
 const DEAL_FROM = "00:00";
-const DEAL_FROM_SHOP = { getpower: "17:30" };
+const DEAL_FROM_SHOP = { getpower: "00:00" };
+// 展示用：網站切到「示範時間」送出的預訂不檢查時段，白天也能訂。正式上線改成 false
+const ALLOW_DEMO = true;
 
 const LISTING_HEAD = ["id", "shop", "name", "cat", "price", "deal", "qty", "until", "kcal", "protein", "nsrc", "nnote", "micro", "fried"];
 const RESERVATION_HEAD = ["time", "code", "itemIds", "items"];
@@ -133,7 +135,7 @@ function doPost(e) {
       const row = rowOf(id);
       if (row < 0 || !(Number(values[row][qtyCol]) > 0)) return json_({ ok: false, error: `已訂完：${id}` });
       const from = DEAL_FROM_SHOP[values[row][shopCol]] || DEAL_FROM;
-      if (now < from) return json_({ ok: false, error: `${from} 起才開放預訂` });
+      if (now < from && !(ALLOW_DEMO && body.demo === true)) return json_({ ok: false, error: `${from} 起才開放預訂` });
     }
     for (const id of body.itemIds) {
       const row = rowOf(id);

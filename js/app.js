@@ -53,8 +53,9 @@
   const saveFavs = () => store.set(ukey("favs"), favs);
 
   // ---------- 惜食時段：19:00 起才有惜食價、才能預訂 ----------
-  // 白天展示時可以切到「示範時間 19:30」，看傍晚的畫面；接上試算表後不提供（後端也會擋）
-  let demoClock = !CFG.APPS_SCRIPT_URL && store.get("re_demo_clock", false);
+  // 白天展示時可以切到「示範時間 19:30」，看傍晚的畫面
+  const canDemo = !CFG.APPS_SCRIPT_URL || CFG.DEMO_CLOCK;     // 接上試算表後，要 config 開啟 DEMO_CLOCK 才能用示範時間
+  let demoClock = canDemo && store.get("re_demo_clock", false);
   const DEMO_TIME = "19:30";
   const nowHM = () => (demoClock ? DEMO_TIME : new Date().toTimeString().slice(0, 5));
   const dealFrom = (shopId) => (CFG.DEAL_FROM_SHOP || {})[shopId] || CFG.DEAL_FROM || "19:00";
@@ -321,7 +322,7 @@
     if (live.length && !anyOpen()) {
       $("#tonight").innerHTML = `<p class="tonight-main">今晚 ${shops.size} 家店預計有 ${n} 份</p>
         <p class="tonight-sub">惜食價 <b>${esc(CFG.DEAL_FROM || "19:00")}</b> 開始，還有 ${untilOpenText()}。現在顯示的是原價。</p>
-        ${CFG.APPS_SCRIPT_URL ? "" : `<button type="button" class="demo-time" data-demo-clock="on">示範：直接看 ${DEMO_TIME} 的畫面</button>`}`;
+        ${!canDemo ? "" : `<button type="button" class="demo-time" data-demo-clock="on">示範：直接看 ${DEMO_TIME} 的畫面</button>`}`;
       return;
     }
     // 只有部分店家開始時（GET POWER 較早打烊、提早開始），價格只算已開始的店，其餘註明幾點開始
@@ -333,7 +334,7 @@
          <p class="tonight-sub">${openBoxes.length ? `完整餐盒 <b>$${Math.min(...openBoxes.map((x) => x.deal))}</b> 起，` : ""}單份最多省 <b>$${later.length ? openBest : best}</b></p>
          ${later.length ? `<p class="tonight-sub">${later.map((id) => esc(shortName(shopById[id]))).join("、")} ${dealFrom(later[0])} 起才有惜食價</p>` : ""}
          ${demoClock ? `<button type="button" class="demo-time" data-demo-clock="off">示範時間 ${DEMO_TIME}，改回現在時間</button>`
-           : later.length && !CFG.APPS_SCRIPT_URL ? `<button type="button" class="demo-time" data-demo-clock="on">示範：直接看 ${DEMO_TIME} 的畫面</button>` : ""}`
+           : later.length && canDemo ? `<button type="button" class="demo-time" data-demo-clock="on">示範：直接看 ${DEMO_TIME} 的畫面</button>` : ""}`
       : `<p class="tonight-main">今晚的惜食都訂完了</p><p class="tonight-sub">明天傍晚再來看看。</p>`;
   }
   document.addEventListener("click", (e) => {
@@ -455,7 +456,7 @@
     if (CFG.APPS_SCRIPT_URL) {
       toast("預訂中…");
       try {
-        const res = await fetch(CFG.APPS_SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "reserve", itemIds: pendingIds, code }) });
+        const res = await fetch(CFG.APPS_SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "reserve", itemIds: pendingIds, code, demo: demoClock }) });
         const data = await res.json();
         if (!data.ok) { toast(/開放/.test(data.error || "") ? data.error : "有品項剛被訂走了，請重新整理後再試一次。"); return; }
       } catch { toast("預訂沒有送出，請檢查網路後再試一次。"); return; }

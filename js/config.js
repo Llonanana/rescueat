@@ -9,4 +9,6 @@ window.RE_CONFIG = {
   DEAL_FROM: "19:00",
   // 19:00 前就打烊的店家另訂開始時間（打烊前 1 小時）
   DEAL_FROM_SHOP: { getpower: "17:30" },
+  // 展示用：接上試算表後仍顯示「示範時間 19:30」按鈕，白天也能預訂（Code.gs 的 ALLOW_DEMO 也要是 true）。正式上線改成 false
+  DEMO_CLOCK: true,
 };
