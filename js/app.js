@@ -878,7 +878,7 @@
       </dl>
       <ol class="ai-steps">${r.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
       ${r.tip ? `<p class="ai-tip">${esc(r.tip)}</p>` : ""}
-      <p class="ai-note">由 Gemini 產生，未經營養師審閱；熱量與蛋白質為估算值，僅供參考。</p>
+      <p class="ai-note">AI 產生的食譜，未經營養師審閱；熱量與蛋白質為估算值，僅供參考。</p>
     </article>`;
   }
   // 訪客也能用：沒登入時用這台裝置的代號計算每天次數
@@ -900,7 +900,7 @@
     } catch {
       err.textContent = "連不到 AI，請檢查網路後再試一次。"; $("#aiOut").innerHTML = "";
     } finally {
-      btn.disabled = false; btn.classList.remove("is-busy"); $("span", btn).textContent = btn.dataset.again ? "再想一道" : "請 AI 想一道";
+      btn.disabled = false; btn.classList.remove("is-busy"); $("span", btn).textContent = btn.dataset.again ? "再想一道" : "幫我想一道";
     }
   });
 

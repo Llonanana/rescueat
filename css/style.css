@@ -900,7 +900,7 @@ button.post-att:hover { background: var(--green-bg); }
 .ai-box { position: relative; margin: 0 0 20px; padding: 16px 18px 18px; background: radial-gradient(120% 140% at 0% 0%, var(--green-bg) 0%, var(--paper) 55%); border: 1px solid var(--line); border-radius: 10px; }
 .ai-box[hidden] { display: none; }
 .ai-head { display: flex; align-items: center; gap: 10px; }
-.ai-mark { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: var(--green); color: #fff; box-shadow: 0 2px 6px color-mix(in srgb, var(--green) 30%, transparent); }
+.ai-mark { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--green-bg); color: var(--green); border: 1px solid color-mix(in srgb, var(--green) 22%, transparent); }
 .ai-title { flex: 1; min-width: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 6px 12px; flex-wrap: wrap; }
 .ai-title h4 { margin: 0; font-size: 1.02rem; letter-spacing: .03em; }
 .ai-title small { font-size: .74rem; color: var(--muted); }
@@ -916,11 +916,11 @@ button.post-att:hover { background: var(--green-bg); }
 .ai-form:focus-within { border-color: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 15%, transparent); }
 .ai-form input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: .92rem; color: var(--ink); padding: 0 8px 0 14px; min-height: 40px; }
 .ai-form input::placeholder { color: var(--muted); }
-#aiGo { flex: none; display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 999px; padding: 0 18px; min-height: 40px; background: var(--green); color: #fff; font: 700 .92rem var(--font); letter-spacing: .04em; cursor: pointer; transition: background .15s; }
+#aiGo { flex: none; display: inline-flex; align-items: center; gap: 8px; border: 0; border-radius: 999px; padding: 0 22px; min-height: 40px; background: var(--green); color: #fff; font: 700 .92rem var(--font); letter-spacing: .04em; cursor: pointer; transition: background .15s; }
 #aiGo:hover { background: var(--green-d); }
 #aiGo:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 #aiGo:disabled { cursor: progress; opacity: .85; }
-#aiGo.is-busy svg { animation: ai-spin 1.2s linear infinite; }
+#aiGo.is-busy::before { content: ""; width: 13px; height: 13px; border: 2px solid rgb(255 255 255 / .45); border-top-color: #fff; border-radius: 50%; animation: ai-spin .8s linear infinite; }
 @keyframes ai-spin { to { transform: rotate(360deg); } }
 .ai-box .form-error { margin: 8px 0 0 42px; min-height: 0; }
 .ai-box .form-error:empty { display: none; }
@@ -933,7 +933,7 @@ button.post-att:hover { background: var(--green-bg); }
 .ai-skel i:nth-child(3) { width: 64%; }
 .ai-skel p { margin: 4px 0 0; font-size: .8rem; color: var(--muted); }
 @keyframes ai-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
-@media (prefers-reduced-motion: reduce) { #aiGo.is-busy svg, .ai-skel i { animation: none; } }
+@media (prefers-reduced-motion: reduce) { #aiGo.is-busy::before, .ai-skel i { animation: none; } }
 .ai-recipe { border-radius: 8px; box-shadow: 0 1px 0 var(--line-2); }
 .ai-tag { font-size: .72rem; font-weight: 700; color: var(--green-d); background: var(--green-bg); border-radius: 999px; padding: 0 8px; line-height: 1.7; }
 .ai-recipe .recipe-ings { min-height: 0; }

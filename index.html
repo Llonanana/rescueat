@@ -18,7 +18,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@900&family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-  <link rel="stylesheet" href="css/style.css?v=20261115d">
+  <link rel="stylesheet" href="css/style.css?v=20261115e">
 </head>
 <body>
   <header class="topbar">
@@ -247,13 +247,13 @@
         </div>
         <section class="ai-box" id="aiBox" aria-labelledby="h-ai" hidden>
           <div class="ai-head">
-            <span class="ai-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 2.5c.5 4.6 2.9 7 7.5 7.5-4.6.5-7 2.9-7.5 7.5-.5-4.6-2.9-7-7.5-7.5 4.6-.5 7-2.9 7.5-7.5Z"/><path fill="currentColor" d="M19 15.5c.2 1.8 1.2 2.8 3 3-1.8.2-2.8 1.2-3 3-.2-1.8-1.2-2.8-3-3 1.8-.2 2.8-1.2 3-3Z" opacity=".7"/></svg></span>
-            <div class="ai-title"><h4 id="h-ai">找不到想煮的？請 AI 想一道</h4><small>由 Gemini 產生</small></div>
+            <span class="ai-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3.5c-.9 1 .9 2 0 3M12.5 3c-.9 1 .9 2 0 3M16 3.5c-.9 1 .9 2 0 3"/><path d="M4 9.5h16"/><path d="M5.5 9.5v6a3.5 3.5 0 0 0 3.5 3.5h6a3.5 3.5 0 0 0 3.5-3.5v-6"/><path d="M3 12h2.5M18.5 12H21"/></svg></span>
+            <div class="ai-title"><h4 id="h-ai">找不到想煮的？請 AI 想一道</h4></div>
           </div>
           <div class="ai-uses" id="aiUses"></div>
           <div class="ai-form">
             <input type="text" id="aiExtra" maxlength="60" placeholder="再加點食材（選填）：吐司、起司、泡麵…" aria-label="其他食材（選填）">
-            <button type="button" id="aiGo"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M12 2.5c.5 4.6 2.9 7 7.5 7.5-4.6.5-7 2.9-7.5 7.5-.5-4.6-2.9-7-7.5-7.5 4.6-.5 7-2.9 7.5-7.5Z"/></svg><span>請 AI 想一道</span></button>
+            <button type="button" id="aiGo"><span>幫我想一道</span></button>
           </div>
           <p class="form-error" id="aiErr" role="alert"></p>
           <div id="aiOut" aria-live="polite"></div>
@@ -475,14 +475,14 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <!-- ?v= 是版本號：改了 css 或 js 之後一起改，瀏覽器才不會拿新網頁配舊程式 -->
-  <script src="js/config.js?v=20261115d"></script>
-  <script src="data/shops.js?v=20261115d"></script>
-  <script src="data/listings.js?v=20261115d"></script>
-  <script src="data/foods.js?v=20261115d"></script>
-  <script src="data/dris.js?v=20261115d"></script>
-  <script src="data/recipes.js?v=20261115d"></script>
-  <script src="data/meals.js?v=20261115d"></script>
-  <script src="data/stats.js?v=20261115d"></script>
-  <script src="js/app.js?v=20261115d"></script>
+  <script src="js/config.js?v=20261115e"></script>
+  <script src="data/shops.js?v=20261115e"></script>
+  <script src="data/listings.js?v=20261115e"></script>
+  <script src="data/foods.js?v=20261115e"></script>
+  <script src="data/dris.js?v=20261115e"></script>
+  <script src="data/recipes.js?v=20261115e"></script>
+  <script src="data/meals.js?v=20261115e"></script>
+  <script src="data/stats.js?v=20261115e"></script>
+  <script src="js/app.js?v=20261115e"></script>
 </body>
 </html>
