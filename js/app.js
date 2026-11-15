@@ -888,9 +888,9 @@
     err.textContent = "";
     if (!rSel.ing.size && !todayRescued().length && !extra) { err.textContent = "先在上面選一樣手邊食材，或在「其他食材」寫一樣。"; return; }
     btn.disabled = true; btn.classList.add("is-busy"); $("span", btn).textContent = "想食譜中…";
-    $("#aiOut").innerHTML = `<div class="ai-skel" role="status"><i></i><i></i><i></i><p>AI 正在想食譜，通常要 5 到 15 秒</p></div>`;
+    $("#aiOut").innerHTML = `<div class="ai-skel" role="status"><i></i><i></i><i></i><p>AI 正在想食譜，通常要 10 到 30 秒</p></div>`;
     try {
-      const res = await fetch(CFG.APPS_SCRIPT_URL, { method: "POST", signal: AbortSignal.timeout(60000),
+      const res = await fetch(CFG.APPS_SCRIPT_URL, { method: "POST", signal: AbortSignal.timeout(90000),
         body: JSON.stringify({ action: "aiRecipe", equip: [...rSel.equip], ings: [...rSel.ing], rescued: todayRescued(), extra, user: myId || deviceId }) });
       const data = await res.json();
       if (!data.ok) { err.textContent = data.error || "AI 暫時沒有回應，等一下再試。"; $("#aiOut").innerHTML = ""; return; }
