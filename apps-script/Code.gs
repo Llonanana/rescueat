@@ -13,7 +13,7 @@
  */
 
 // 惜食時段：這個時間起才接受預訂（台灣時間），要和 js/config.js 的 DEAL_FROM、DEAL_FROM_SHOP 一致
-const DEAL_FROM = "19:00";
+const DEAL_FROM = "00:00";
 const DEAL_FROM_SHOP = { getpower: "17:30" };
 
 const LISTING_HEAD = ["id", "shop", "name", "cat", "price", "deal", "qty", "until", "kcal", "protein", "nsrc", "nnote", "micro", "fried"];
