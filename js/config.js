@@ -7,8 +7,8 @@ window.RE_CONFIG = {
   ESTIMATE_NOTE: "估算值，僅供參考",
   // 惜食時段：這個時間起才顯示惜食價、開放預訂（台灣時間，24 小時制）
   DEAL_FROM: "19:00",
-  // 19:00 前就打烊的店家另訂開始時間（打烊前 1 小時）
-  DEAL_FROM_SHOP: { getpower: "17:30" },
+  // 19:00 就打烊的店家另訂開始時間（打烊前 1 小時）
+  DEAL_FROM_SHOP: { getpower: "18:00" },
   // 展示用：接上試算表後仍顯示「示範時間 19:30」按鈕，白天也能預訂（Code.gs 的 ALLOW_DEMO 也要是 true）。正式上線改成 false
   DEMO_CLOCK: true,
 };

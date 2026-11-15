@@ -91,7 +91,7 @@ shops = [
      "hours": "10:30–13:30、16:00–19:30", "close": "19:30", "status": "示範上架",
      "menuSource": "https://bonbox.tw/menu/", "menuDate": "2026-07-13"},
     {"id": "getpower", "name": "GET POWER 給力盒子 政大店", "short": "GET POWER", "pin": "sw", "type": "健康餐盒", "addr": "集英樓", "lat": 24.9873122, "lng": 121.5743977,
-     "hours": "10:30–14:00、16:00–18:30", "close": "18:30", "status": "示範上架",
+     "hours": "10:30–14:00、16:00–19:00（週六、日公休）", "close": "19:00", "status": "示範上架",
      "menuSource": "https://www.foodpanda.com.tw/restaurant/b933/get-power-gei-li-he-zi-zheng-da-dian-b933", "menuDate": "2026-11-01"},
     {"id": "proteinbox", "name": "蛋白盒子 台北木柵店", "short": "蛋白盒子", "type": "健康餐盒", "addr": "木柵路三段87號1樓", "lat": 24.9888302, "lng": 121.5677108,
      "hours": "週一至週五 11:00–14:00、16:30–20:00（週末公休）", "close": "20:00", "status": "示範上架",
@@ -138,9 +138,9 @@ add("bonbox", "加購 杏鮑菇", "蔬菜", 39, 2, "19:30", est=[("G13002", 100)
 add("bonbox", "加購 蔬菜", "蔬菜", 30, 3, "19:30", official=(42, 3))
 add("bonbox", "加購 黑金麥飯", "主食", 20, 4, "19:30", official=(282, 6))
 add("bonbox", "加購 地瓜泥球", "主食", 20, 3, "19:30", official=(46, 1))
-add("getpower", "椒鹽水煮雞胸餐盒", "完整餐盒", 220, 2, "18:15", official=(605, 43), micro=True)
-add("getpower", "泰式打拋雞胸餐盒", "完整餐盒", 220, 1, "18:15", official=(596, 41), micro=True)
-add("getpower", "爐烤鮮時蔬餐盒", "完整餐盒", 190, 2, "18:15", official=(510, 16), micro=True)
+add("getpower", "椒鹽水煮雞胸餐盒", "完整餐盒", 220, 2, "18:45", official=(605, 43), micro=True)
+add("getpower", "泰式打拋雞胸餐盒", "完整餐盒", 220, 1, "18:45", official=(596, 41), micro=True)
+add("getpower", "爐烤鮮時蔬餐盒", "完整餐盒", 190, 2, "18:45", official=(510, 16), micro=True)
 PB_RANGE = "官網只標示香煎雞胸系列三種口味為 526–535 大卡、蛋白質 29.9–30.6 g，取中間值"
 add("proteinbox", "香煎黑胡椒雞胸餐盒", "完整餐盒", 125, 3, "19:45", approx=(530, 30.2, PB_RANGE))
 add("proteinbox", "香煎海苔雞胸餐盒", "完整餐盒", 125, 2, "19:45", approx=(530, 30.2, PB_RANGE))
