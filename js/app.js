@@ -959,7 +959,6 @@
     })();
     return syncing;
   }
-  const SEED_RANK = [["小安・資管二", 186], ["宿舍 302", 142], ["阿哲", 97], ["Mina", 64], ["Ken・企管三", 38]];
   let feedKind = "all", postKind = "cook", postRate = 0, postImg = "";
 
   // 浮動按鈕：上次打開惜食圈之後，別人發了幾篇（第一次來就是全部）
@@ -1020,12 +1019,7 @@
       || `<li class="empty feed-empty"><b>這個分類還沒有貼文</b><span>成為第一個分享的人吧。</span><button type="button" class="btn" data-new-post="${feedKind}">分享${KIND[feedKind] || ""}</button></li>`;
     $("#shareAvatar").outerHTML = me ? avatar(me.name).replace('class="avatar', 'id="shareAvatar" class="avatar') : `<span class="avatar av-guest" id="shareAvatar" aria-hidden="true">你</span>`;
     renderReward();
-    // 排行：示範同學＋自己（會員）；前三名用獎牌色
-    const rows = SEED_RANK.map(([name, pts]) => ({ name, pts }));
-    if (me) rows.push({ name: me.name, pts: myStats().points, me: true });
-    rows.sort((a, b) => b.pts - a.pts);
-    $("#rankList").innerHTML = rows.map((r, i) => `<li class="${r.me ? "is-me" : ""} ${i < 3 ? `top top-${i + 1}` : ""}">
-      <span class="n">${i + 1}</span>${avatar(r.name)}<span class="rk-name">${esc(r.name)}${r.me ? "<small>你</small>" : ""}</span><b>${fmt(r.pts)}<small>點</small></b></li>`).join("");
+    $("#drawerNote").textContent = API ? "貼文、照片和按讚所有人都看得到；惜食點數只存在你的裝置。" : "貼文只存在這台瀏覽器。";
   }
   // 點數怎麼來：三種方式各連到做那件事的地方
   const EARN = [["map", "預訂 1 份惜食", POINTS.rescue], ["nutri", "記錄今天的飲食", POINTS.logDay], ["share", "在惜食圈分享", POINTS.post]];

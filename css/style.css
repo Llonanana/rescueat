@@ -760,23 +760,6 @@ button.post-att:hover { background: var(--green-bg); }
 .feed-empty span { font-size: .86rem; }
 .feed-empty .btn { margin-top: 6px; }
 
-/* 排行：前三名獎牌色 */
-.rank-box { margin-top: 28px; }
-.rank-box h3 { display: flex; align-items: baseline; gap: 8px; font-size: .98rem; padding-bottom: 8px; border-bottom: 2px solid var(--ink); }
-.rank-box h3 small { font-size: .72rem; font-weight: 400; color: var(--muted); border: 1px solid var(--line); border-radius: 2px; padding: 0 5px; }
-.rank-list { list-style: none; margin: 0; padding: 0; }
-.rank-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line-2); font-size: .9rem; }
-.rank-list .n { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font: 700 .86rem var(--num); color: var(--muted); }
-.rank-list .top .n { color: #fff; }
-.rank-list .top-1 .n { background: #C9A227; }
-.rank-list .top-2 .n { background: #9AA3A8; }
-.rank-list .top-3 .n { background: #B0763F; }
-.rank-list .avatar { width: 30px; height: 30px; font-size: .8rem; }
-.rk-name { flex: 1; min-width: 0; }
-.rk-name small { margin-left: 6px; font-size: .7rem; font-weight: 700; color: #fff; background: var(--green); border-radius: 999px; padding: 1px 7px; }
-.rank-list b { font: 700 1.05rem var(--num); font-variant-numeric: tabular-nums; }
-.rank-list b small { font: 400 .72rem var(--font); color: var(--muted); margin-left: 2px; }
-.rank-list .is-me { background: var(--green-bg); margin: 0 -8px; padding-inline: 8px; border-radius: 4px; }
 .drawer-note { margin-top: 14px; }
 
 /* 發文視窗：三張類型卡、照片區、字數 */
