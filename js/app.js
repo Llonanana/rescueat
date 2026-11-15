@@ -37,6 +37,9 @@
   const me = users[store.get("re_session", "")] || null;
   // 訪客的資料放在 re_xxx；會員放在自己的鍵底下，登入登出不會混在一起
   const ukey = (name) => (me ? `re_u:${me.email}:${name}` : `re_${name}`);
+  // 會員代號：email 的雜湊。貼文和按讚只記代號，接上後端時別人看不到你的 email
+  const idOf = (email) => { let h = 2166136261; for (const c of email.toLowerCase()) { h ^= c.codePointAt(0); h = Math.imul(h, 16777619) >>> 0; } return `u${h.toString(36)}`; };
+  const myId = me ? idOf(me.email) : "";
   // 會員保留所有紀錄；訪客只留當天，隔天自動清空
   let reservationsAll = store.get(ukey("reservations"), []).filter((r) => r.at && (me || dayOf(r.at) === today()));
   let reservations = reservationsAll.filter((r) => dayOf(r.at) === today());
@@ -129,6 +132,8 @@
     if (!d.hidden) return;
     lastFocus = document.activeElement;
     renderCommunity();
+    // 打開時再抓一次，看得到別人剛發的
+    if (API) syncPosts().then((ok) => { if (ok && !$("#community").hidden) { renderCommunity(); updateAccountBtn(); } });
     store.set(ukey("comm_seen"), new Date().toISOString());   // 打開過就算看過，浮動按鈕的新貼文數歸零
     updateFab();
     d.hidden = false; $("#communityScrim").hidden = false; $("#communityFab").hidden = true;
@@ -864,7 +869,7 @@
     const priceOf = (x) => x.price ?? window.RE_LISTINGS.items.find((y) => y.name === x.name && y.shop === x.shop)?.price ?? x.deal;
     const days = new Set(eatenAll.map((e) => e.d));
     const needP = needsFor(readProfile()).row.protein_g;
-    const rescued = rItems.length, nPosts = me ? posts.filter((p) => p.by === me.email).length : 0;
+    const rescued = rItems.length, nPosts = me ? posts.filter((p) => p.by === myId).length : 0;
     return {
       rescued, posts: nPosts, logDays: days.size, streak: streakOf(days),
       saved: rItems.reduce((t, x) => t + priceOf(x) - x.deal, 0),
@@ -918,7 +923,7 @@
       <span class="badge-mark" aria-hidden="true">${esc(b.mark)}</span><b>${esc(b.name)}</b><small>${on ? "已解鎖" : esc(b.how)}</small></li>`; }).join("");
   }
 
-  // ---------- 惜食圈（示範版：貼文存在這台瀏覽器，換裝置看不到；正式版要接後端） ----------
+  // ---------- 惜食圈（沒接後端時貼文只存在這台瀏覽器；接上 Apps Script 後所有人看得到） ----------
   const KIND = { cook: "剩食料理", unbox: "惜食開箱", tip: "省錢撇步" };
   const ago = (iso) => { const m = (Date.now() - new Date(iso)) / 60000; return m < 1 ? "剛剛" : m < 60 ? `${Math.floor(m)} 分鐘前` : m < 1440 ? `${Math.floor(m / 60)} 小時前` : `${Math.floor(m / 1440)} 天前`; };
   // 示範貼文：時間以第一次打開為準往回推，讓動態看起來是最近的
@@ -940,15 +945,42 @@
   }
   let posts = store.get("re_posts", null);
   if (!Array.isArray(posts)) { posts = seedPosts(); store.set("re_posts", posts); }
+  // 舊版用 email 記作者和按讚，換成會員代號
+  posts.forEach((p) => { if (/@/.test(p.by || "")) p.by = idOf(p.by); p.likes = (p.likes || []).map((u) => (/@/.test(u) ? idOf(u) : u)); });
   // 照片佔空間，存不下時要讓使用者知道，所以不用 store.set 的靜默失敗
   const savePosts = () => { try { localStorage.setItem("re_posts", JSON.stringify(posts)); return true; } catch { return false; } };
+  // 接上後端時：貼文以試算表為準，示範貼文照樣留著；這台裝置只當快取
+  const API = CFG.APPS_SCRIPT_URL;
+  const postApi = async (body) => {
+    const res = await fetch(API, { method: "POST", body: JSON.stringify(body), signal: AbortSignal.timeout(20000) });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || "failed");
+    return data;
+  };
+  let syncing = null;
+  function syncPosts() {
+    if (!API) return Promise.resolve(false);
+    syncing = syncing || (async () => {
+      try {
+        const res = await fetch(`${API}?action=posts`, { signal: AbortSignal.timeout(15000) });
+        const data = await res.json();
+        if (!Array.isArray(data.posts)) throw new Error("bad data");
+        const demo = posts.filter((p) => p.demo);
+        posts = [...(demo.length ? demo : seedPosts()), ...data.posts.filter((p) => p.id && KIND[p.kind])];
+        // 照片太佔空間，快取只留文字
+        try { localStorage.setItem("re_posts", JSON.stringify(posts.map((p) => (p.demo ? p : { ...p, img: "" })))); } catch { /* 存不下就不快取 */ }
+        return true;
+      } catch { return false; } finally { syncing = null; }
+    })();
+    return syncing;
+  }
   const SEED_RANK = [["小安・資管二", 186], ["宿舍 302", 142], ["阿哲", 97], ["Mina", 64], ["Ken・企管三", 38]];
   let feedKind = "all", postKind = "cook", postRate = 0, postImg = "";
 
   // 浮動按鈕：上次打開惜食圈之後，別人發了幾篇（第一次來就是全部）
   function updateFab() {
     const seen = store.get(ukey("comm_seen"), "");
-    const n = posts.filter((p) => p.at > seen && !(me && p.by === me.email)).length;
+    const n = posts.filter((p) => p.at > seen && !(me && p.by === myId)).length;
     $("#fabBadge").hidden = !n;
     $("#fabBadge").textContent = n > 9 ? "9+" : n;
     $("#fabNote").textContent = n ? `${n} 則新分享` : "看大家今晚吃什麼";
@@ -961,7 +993,7 @@
   const avatar = (name) => `<span class="avatar av-${avatarHue(name)}" aria-hidden="true">${esc([...name][0])}</span>`;
   const heart = (on) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"${on ? ' class="fill"' : ""}/></svg>`;
   function postCard(p) {
-    const mine = me && p.by === me.email, liked = me && p.likes.includes(me.email);
+    const mine = me && p.by === myId, liked = me && p.likes.includes(myId);
     let att = "", act = "";
     const r = p.recipe && RECIPES.find((x) => x.name === p.recipe);
     // 附上的食譜：左邊用設備顏色標示，整塊可以點去看做法
@@ -1092,16 +1124,23 @@
     $$("#rateStars [data-rate]").forEach((x) => x.classList.toggle("is-on", +x.dataset.rate <= postRate));
   });
   // 照片縮到長邊 900 px 再存，避免塞爆瀏覽器空間
+  // 接上後端時照片存在試算表的一格裡（上限約 5 萬字），所以縮得更小，直到放得下
   function shrinkPhoto(file) {
     return new Promise((ok, fail) => {
       const img = new Image();
       img.onload = () => {
-        const k = Math.min(1, 900 / Math.max(img.width, img.height));
-        const c = document.createElement("canvas");
-        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
         URL.revokeObjectURL(img.src);
-        ok(c.toDataURL("image/jpeg", 0.78));
+        const tries = API ? [[640, 0.6], [520, 0.5], [420, 0.45], [340, 0.4]] : [[900, 0.78]];
+        let url = "";
+        for (const [side, q] of tries) {
+          const k = Math.min(1, side / Math.max(img.width, img.height));
+          const c = document.createElement("canvas");
+          c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+          c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+          url = c.toDataURL("image/jpeg", q);
+          if (!API || url.length < 48000) break;
+        }
+        if (API && url.length >= 48000) fail(new Error("too big")); else ok(url);
       };
       img.onerror = fail;
       img.src = URL.createObjectURL(file);
@@ -1112,19 +1151,30 @@
     try { postImg = await shrinkPhoto(f); } catch { postImg = ""; toast("這個檔案無法讀取，請換一張照片。"); }
     $("#photoPreview").src = postImg; $("#photoPreview").hidden = !postImg; $("#photoPick").classList.toggle("has-img", !!postImg);
   });
-  $("#composer").addEventListener("submit", (e) => {
+  $("#composer").addEventListener("submit", async (e) => {
     e.preventDefault();
+    const btn = $("#composer [type=submit]");
+    if (btn.disabled) return;
     const err = $("#composer .form-error"), text = $("#postText").value.trim();
     const pick = JSON.parse($("#postItem").dataset.items || "[]")[+$("#postItem").value];
     err.textContent = !text && !postImg ? "寫一點內容或放一張照片。"
       : postKind === "unbox" && !pick ? "先預訂一份惜食，取餐後再來開箱。"
       : postKind === "unbox" && !postRate ? "幫這份惜食打個分數。" : "";
     if (err.textContent) return;
-    const p = { id: Date.now().toString(36), by: me.email, name: me.name, kind: postKind, text, img: postImg, at: new Date().toISOString(), likes: [] };
+    let p = { id: Date.now().toString(36), by: myId, name: me.name, kind: postKind, text, img: postImg, at: new Date().toISOString(), likes: [] };
     if (postKind === "cook" && $("#postRecipe").value) p.recipe = $("#postRecipe").value;
     if (postKind === "unbox") { p.item = pick; p.rate = postRate; }
-    posts.push(p);
-    if (!savePosts()) { posts.pop(); err.textContent = "這台裝置的儲存空間不夠，換一張小一點的照片，或刪掉舊貼文再試。"; return; }
+    if (API) {
+      const label = btn.textContent;
+      btn.disabled = true; btn.textContent = "發佈中…";
+      try { p = (await postApi({ action: "post", post: p })).post; }
+      catch { err.textContent = "沒有送出，請檢查網路後再試一次。"; return; }
+      finally { btn.disabled = false; btn.textContent = label; }
+      posts.push(p); savePosts();
+    } else {
+      posts.push(p);
+      if (!savePosts()) { posts.pop(); err.textContent = "這台裝置的儲存空間不夠，換一張小一點的照片，或刪掉舊貼文再試。"; return; }
+    }
     e.target.reset(); postImg = ""; postRate = 0; countText();
     $("#photoPreview").hidden = true; $("#photoPick").classList.remove("has-img");
     $$("#rateStars [data-rate]").forEach((x) => x.classList.remove("is-on"));
@@ -1138,17 +1188,27 @@
     renderRewardStrip();
     toast(`已發佈・惜食點數 +${POINTS.post}${unlocked.length ? `・解鎖徽章「${unlocked.map((b) => b.name).join("、")}」` : ""}`);
   });
-  document.addEventListener("click", (e) => {
+  document.addEventListener("click", async (e) => {
     const lk = e.target.closest("[data-like]");
     if (lk) {
       if (!me) { toast("登入會員後才能按讚。"); return; }
-      const p = posts.find((x) => x.id === lk.dataset.like), i = p.likes.indexOf(me.email);
-      i < 0 ? p.likes.push(me.email) : p.likes.splice(i, 1);
-      savePosts(); renderCommunity();
+      const p = posts.find((x) => x.id === lk.dataset.like), before = [...p.likes], i = p.likes.indexOf(myId);
+      i < 0 ? p.likes.push(myId) : p.likes.splice(i, 1);
+      savePosts(); renderCommunity();          // 先改畫面，按起來才不會卡
+      if (API && !p.demo) {
+        try { p.likes = (await postApi({ action: "like", id: p.id, user: myId })).likes; }
+        catch { p.likes = before; toast("按讚沒有送出，請稍後再試。"); }
+        savePosts(); renderCommunity();
+      }
     }
     const dp = e.target.closest("[data-del-post]");
     if (dp && confirm("刪除這篇貼文？")) {
-      posts = posts.filter((x) => x.id !== dp.dataset.delPost);
+      const id = dp.dataset.delPost;
+      if (API && !posts.find((x) => x.id === id)?.demo) {
+        try { await postApi({ action: "delPost", id, user: myId }); }
+        catch { toast("刪除沒有成功，請稍後再試。"); return; }
+      }
+      posts = posts.filter((x) => x.id !== id);
       savePosts(); updateAccountBtn(); renderCommunity();
     }
     const gr = e.target.closest("[data-goto-recipe]");
@@ -1319,7 +1379,7 @@
     } catch { $("#demoText").textContent = "連不到店家資料，目前顯示示範品項。"; }
   }
   (async function start() {
-    await loadRemote();
+    await Promise.all([loadRemote(), syncPosts()]);
     applyLocalReservations();
     initMap();
     renderAll();

@@ -3,7 +3,7 @@
  *
  * 設定步驟（詳見 README「接上 Google 試算表」）：
  *   1. 新增一份 Google 試算表 → 擴充功能 → Apps Script → 貼上本檔並儲存
- *   2. 上方函式選 setup → 執行（第一次要授權），會建好 listings、reservations 兩個工作表和示範品項
+ *   2. 上方函式選 setup → 執行（第一次要授權），會建好 listings、reservations、posts 三個工作表和示範品項
  *   3. 部署 → 新增部署作業 → 類型「網頁應用程式」；執行身分：我；誰可以存取：所有人
  *   4. 複製網址貼到 js/config.js 的 APPS_SCRIPT_URL
  *   之後改了本檔，要到「管理部署作業」發布新版本才會生效。
@@ -18,6 +18,11 @@ const DEAL_FROM_SHOP = { getpower: "17:30" };
 
 const LISTING_HEAD = ["id", "shop", "name", "cat", "price", "deal", "qty", "until", "kcal", "protein", "nsrc", "nnote", "micro", "fried"];
 const RESERVATION_HEAD = ["time", "code", "itemIds", "items"];
+// 惜食圈貼文。by 是會員代號（email 的雜湊，不存 email 本身），likes 存按讚的會員代號
+const POST_HEAD = ["id", "at", "by", "name", "kind", "text", "img", "recipe", "item", "rate", "likes"];
+const POST_KINDS = ["cook", "unbox", "tip"];
+const MAX_POSTS = 200;      // 只回傳最新的幾篇，避免越來越慢
+const CELL_MAX = 49000;     // 試算表一格最多 5 萬字，照片要比這個小
 const FORM_ROWS = 200;      // 預先套用格式與檢查的列數
 const SEED = [
   ["bonbox-1", "bonbox", "威力雞胸弁當", "完整餐盒", 130, 104, 2, "19:30", 504, 31, "official", "", false, false],
@@ -76,10 +81,25 @@ function setup() {
     reservations.getRange(1, 1, 1, RESERVATION_HEAD.length).setValues([RESERVATION_HEAD]).setFontWeight("bold");
     reservations.setFrozenRows(1);
   }
+  setupPosts_();
+}
+
+// 已經建好試算表的人，只要再執行一次 setup（或這個函式）就會補上 posts 工作表
+function setupPosts_() {
+  const ss = SpreadsheetApp.getActive();
+  const posts = ss.getSheetByName("posts") || ss.insertSheet("posts");
+  if (posts.getLastRow() === 0) {
+    posts.getRange(1, 1, 1, POST_HEAD.length).setValues([POST_HEAD]).setFontWeight("bold");
+    posts.getRange(2, 1, FORM_ROWS, POST_HEAD.length).setNumberFormat("@");   // 全部當文字，時間和代號才不會被轉格式
+    posts.setFrozenRows(1);
+  }
+  return posts;
 }
 
 function doGet(e) {
-  if ((e.parameter.action || "") !== "listings") return json_({ error: "unknown action" });
+  const action = e.parameter.action || "";
+  if (action === "posts") return json_({ posts: readPosts_() });
+  if (action !== "listings") return json_({ error: "unknown action" });
   const range = SpreadsheetApp.getActive().getSheetByName("listings").getDataRange();
   const [head, ...rows] = range.getValues();
   const shown = range.getDisplayValues().slice(1);    // 時間用畫面上看到的文字，避免讀成 1899 年的日期
@@ -95,7 +115,11 @@ function doGet(e) {
 }
 
 function doPost(e) {
-  const body = JSON.parse(e.postData.contents);
+  let body;
+  try { body = JSON.parse(e.postData.contents); } catch (err) { return json_({ ok: false, error: "bad json" }); }
+  if (body.action === "post") return addPost_(body.post || {});
+  if (body.action === "like") return toggleLike_(String(body.id || ""), String(body.user || ""));
+  if (body.action === "delPost") return delPost_(String(body.id || ""), String(body.user || ""));
   if (body.action !== "reserve" || !Array.isArray(body.itemIds)) return json_({ error: "unknown action" });
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);               // 同時有人預訂時，避免把份數扣成負的
@@ -121,6 +145,77 @@ function doPost(e) {
   } finally {
     lock.releaseLock();
   }
+}
+
+// ---------- 惜食圈 ----------
+function postSheet_() { return SpreadsheetApp.getActive().getSheetByName("posts") || setupPosts_(); }
+function rowToPost_(r) {
+  const o = Object.fromEntries(POST_HEAD.map((h, i) => [h, r[i]]));
+  const parse = (s, d) => { try { return s ? JSON.parse(s) : d; } catch (err) { return d; } };
+  const p = { id: String(o.id), at: String(o.at), by: String(o.by), name: String(o.name), kind: String(o.kind),
+              text: String(o.text), img: String(o.img), likes: parse(o.likes, []) };
+  if (o.recipe) p.recipe = String(o.recipe);
+  if (o.item) { p.item = parse(o.item, null); p.rate = +o.rate || 0; }
+  return p;
+}
+function readPosts_() {
+  const sheet = postSheet_();
+  const n = sheet.getLastRow() - 1;
+  if (n < 1) return [];
+  const from = Math.max(2, sheet.getLastRow() - MAX_POSTS + 1);
+  return sheet.getRange(from, 1, sheet.getLastRow() - from + 1, POST_HEAD.length).getDisplayValues()
+    .filter((r) => r[0]).map(rowToPost_);
+}
+function clip_(s, n) { return String(s == null ? "" : s).slice(0, n); }
+function addPost_(p) {
+  const kind = POST_KINDS.includes(p.kind) ? p.kind : "";
+  const img = /^data:image\/(jpeg|png|webp);base64,/.test(p.img || "") ? String(p.img) : "";
+  if (!kind || !p.by || !p.name) return json_({ ok: false, error: "資料不完整" });
+  if (img.length > CELL_MAX) return json_({ ok: false, error: "照片太大" });
+  if (!clip_(p.text, 500).trim() && !img) return json_({ ok: false, error: "沒有內容" });
+  const post = { id: Utilities.getUuid().slice(0, 8), at: new Date().toISOString(), by: clip_(p.by, 40), name: clip_(p.name, 30),
+                 kind, text: clip_(p.text, 500), img, likes: [] };
+  const item = kind === "unbox" && p.item ? { id: clip_(p.item.id, 40), name: clip_(p.item.name, 60), shop: clip_(p.item.shop, 40) } : null;
+  const rate = item ? Math.max(1, Math.min(5, Math.round(+p.rate || 0))) : "";
+  const recipe = kind === "cook" ? clip_(p.recipe, 60) : "";
+  // 開頭加 ' 避免文字被試算表當成公式（例如 =、+ 開頭）
+  const safe = (s) => (/^[=+\-@]/.test(s) ? "'" + s : s);
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    postSheet_().appendRow([post.id, post.at, post.by, safe(post.name), kind, safe(post.text), img, safe(recipe), item ? JSON.stringify(item) : "", rate, "[]"]);
+  } finally { lock.releaseLock(); }
+  if (recipe) post.recipe = recipe;
+  if (item) { post.item = item; post.rate = rate; }
+  return json_({ ok: true, post });
+}
+function findPostRow_(sheet, id) {
+  const ids = sheet.getRange(1, 1, sheet.getLastRow(), 1).getDisplayValues();
+  for (let i = ids.length - 1; i > 0; i--) if (ids[i][0] === id) return i + 1;
+  return -1;
+}
+function toggleLike_(id, user) {
+  if (!id || !user) return json_({ ok: false, error: "資料不完整" });
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);   // 兩個人同時按讚，不會互相蓋掉
+  try {
+    const sheet = postSheet_(), row = findPostRow_(sheet, id);
+    if (row < 0) return json_({ ok: false, error: "找不到貼文" });
+    const cell = sheet.getRange(row, POST_HEAD.indexOf("likes") + 1);
+    let likes; try { likes = JSON.parse(cell.getDisplayValue() || "[]"); } catch (err) { likes = []; }
+    const i = likes.indexOf(user);
+    i < 0 ? likes.push(clip_(user, 40)) : likes.splice(i, 1);
+    cell.setValue(JSON.stringify(likes));
+    return json_({ ok: true, likes });
+  } finally { lock.releaseLock(); }
+}
+function delPost_(id, user) {
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    const sheet = postSheet_(), row = findPostRow_(sheet, id);
+    if (row < 0) return json_({ ok: true });
+    if (sheet.getRange(row, POST_HEAD.indexOf("by") + 1).getDisplayValue() !== user) return json_({ ok: false, error: "只能刪除自己的貼文" });
+    sheet.deleteRow(row);
+    return json_({ ok: true });
+  } finally { lock.releaseLock(); }
 }
 
 // 「19:15」「19:15:00」「下午 7:15:00」都統一成 19:15
