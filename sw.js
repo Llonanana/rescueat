@@ -3,7 +3,7 @@
  * Leaflet 與字型「快取優先」：版本固定，不用每次重抓。
  * 地圖圖磚與 Apps Script 不快取：圖磚太多，品項與預訂必須是即時資料。
  */
-const CACHE = "rescueat-v1";
+const CACHE = "rescueat-v2";
 const SHELL = [
   "./", "index.html", "manifest.webmanifest", "css/style.css", "js/config.js", "js/app.js",
   "data/shops.js", "data/listings.js", "data/foods.js", "data/dris.js", "data/recipes.js", "data/stats.js", "data/meals.js",
@@ -22,7 +22,8 @@ self.addEventListener("fetch", (e) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin === self.location.origin) {
-    e.respondWith(fetch(req).then((res) => {
+    // no-cache：每次都向伺服器確認有沒有新版（沒改就回 304，很快），不吃瀏覽器 10 分鐘的快取
+    e.respondWith(fetch(req, { cache: "no-cache" }).then((res) => {
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
       return res;
     }).catch(() => caches.match(req, { ignoreSearch: true }).then((hit) => hit || caches.match("index.html"))));
