@@ -760,7 +760,6 @@ button.post-att:hover { background: var(--green-bg); }
 .feed-empty span { font-size: .86rem; }
 .feed-empty .btn { margin-top: 6px; }
 
-.drawer-note { margin-top: 14px; }
 
 /* 發文視窗：三張類型卡、照片區、字數 */
 .kind-pick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
