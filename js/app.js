@@ -858,11 +858,12 @@
   const todayRescued = () => [...new Set(reservations.flatMap((r) => (r.items || []).map((x) => x.name)))];
   // 告訴使用者 AI 會用哪些條件：上面選的設備、食材，加上今天訂的惜食
   function aiHint() {
-    const parts = [rSel.equip.size ? [...rSel.equip].join("、") : "任一設備", ...rSel.ing];
     const res = todayRescued();
+    const chip = (cls, text) => `<span class="ai-chip ${cls}">${esc(text)}</span>`;
+    const equip = rSel.equip.size ? [...rSel.equip].map((x) => chip(`eq eq-${EQ_KEY[x]}`, x)).join("") : chip("eq none", "任一設備");
     $("#aiUses").innerHTML = rSel.ing.size || res.length
-      ? `會用：${esc(parts.join("、"))}${res.length ? `，加上今天訂的 <b>${esc(res.join("、"))}</b>` : ""}`
-      : "先在上面選手邊食材，或在下面寫其他食材，AI 會依你的設備想一道新食譜。";
+      ? `<span class="ai-label">會用</span>${equip}${[...rSel.ing].map((x) => chip("", x)).join("")}${res.map((x) => `<span class="ai-chip got"><small>今天訂的</small>${esc(x)}</span>`).join("")}`
+      : `<span class="ai-empty">在左邊選手邊的食材，或直接寫在下面，AI 會依你的設備想一道一人份料理。</span>`;
   }
   function aiCard(r) {
     const k = EQ_KEY[r.equip] || "mw";
@@ -886,8 +887,8 @@
     const btn = $("#aiGo"), err = $("#aiErr"), extra = $("#aiExtra").value.trim();
     err.textContent = "";
     if (!rSel.ing.size && !todayRescued().length && !extra) { err.textContent = "先在上面選一樣手邊食材，或在「其他食材」寫一樣。"; return; }
-    btn.disabled = true; btn.textContent = "AI 想食譜中…";
-    $("#aiOut").innerHTML = `<p class="ai-wait">通常要 5 到 15 秒。</p>`;
+    btn.disabled = true; btn.classList.add("is-busy"); $("span", btn).textContent = "想食譜中…";
+    $("#aiOut").innerHTML = `<div class="ai-skel" role="status"><i></i><i></i><i></i><p>AI 正在想食譜，通常要 5 到 15 秒</p></div>`;
     try {
       const res = await fetch(CFG.APPS_SCRIPT_URL, { method: "POST", signal: AbortSignal.timeout(60000),
         body: JSON.stringify({ action: "aiRecipe", equip: [...rSel.equip], ings: [...rSel.ing], rescued: todayRescued(), extra, user: myId || deviceId }) });
@@ -899,7 +900,7 @@
     } catch {
       err.textContent = "連不到 AI，請檢查網路後再試一次。"; $("#aiOut").innerHTML = "";
     } finally {
-      btn.disabled = false; btn.textContent = btn.dataset.again ? "再想一道" : "請 AI 想一道";
+      btn.disabled = false; btn.classList.remove("is-busy"); $("span", btn).textContent = btn.dataset.again ? "再想一道" : "請 AI 想一道";
     }
   });
 
