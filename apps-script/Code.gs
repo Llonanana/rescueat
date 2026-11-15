@@ -122,6 +122,7 @@ function doPost(e) {
   if (body.action === "post") return addPost_(body.post || {});
   if (body.action === "like") return toggleLike_(String(body.id || ""), String(body.user || ""));
   if (body.action === "delPost") return delPost_(String(body.id || ""), String(body.user || ""));
+  if (body.action === "aiRecipe") return json_(aiRecipe_(body));
   if (body.action !== "reserve" || !Array.isArray(body.itemIds)) return json_({ error: "unknown action" });
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);               // 同時有人預訂時，避免把份數扣成負的
@@ -218,6 +219,101 @@ function delPost_(id, user) {
     sheet.deleteRow(row);
     return json_({ ok: true });
   } finally { lock.releaseLock(); }
+}
+
+// ---------- AI 食譜（Gemini） ----------
+// 金鑰放在「專案設定 → 指令碼屬性」的 GEMINI_KEY，不寫在程式裡
+const GEMINI_MODELS = ["gemini-flash-latest", "gemini-2.5-flash"];   // 第一個找不到時改用下一個
+const AI_PER_USER = 5;      // 每人每天幾次
+const AI_PER_DAY = 200;     // 全站每天幾次，避免網址公開後額度被用光
+const EQUIPS = ["微波爐", "電鍋", "快煮鍋", "免開火"];
+const AI_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    name: { type: "STRING" },
+    equip: { type: "STRING", enum: EQUIPS },
+    minutes: { type: "INTEGER" },
+    kcal: { type: "INTEGER" },
+    protein: { type: "NUMBER" },
+    ingredients: { type: "ARRAY", items: { type: "OBJECT", properties: { name: { type: "STRING" }, amount: { type: "STRING" } }, required: ["name", "amount"] } },
+    steps: { type: "ARRAY", items: { type: "STRING" } },
+    tip: { type: "STRING" },
+  },
+  required: ["name", "equip", "minutes", "kcal", "protein", "ingredients", "steps", "tip"],
+};
+
+function aiRecipe_(b) {
+  const key = PropertiesService.getScriptProperties().getProperty("GEMINI_KEY");
+  if (!key) return { ok: false, error: "AI 還沒設定好（缺少 GEMINI_KEY）。" };
+  const list = (a, n) => (Array.isArray(a) ? a : []).map((x) => clip_(x, 20).trim()).filter(Boolean).slice(0, n);
+  const equip = list(b.equip, 4).filter((x) => EQUIPS.includes(x));
+  const ings = list(b.ings, 12), rescued = list(b.rescued, 6), extra = clip_(b.extra, 60).trim();
+  if (!ings.length && !rescued.length && !extra) return { ok: false, error: "先選一樣手邊食材，或在「其他食材」寫一樣。" };
+
+  // 次數限制：每人每天、全站每天
+  const day = Utilities.formatDate(new Date(), "Asia/Taipei", "yyyyMMdd");
+  const user = clip_(b.user, 40) || "anon";
+  const cache = CacheService.getScriptCache(), uk = `ai:${day}:${user}`;
+  const used = Number(cache.get(uk) || 0);
+  if (used >= AI_PER_USER) return { ok: false, error: `今天的 ${AI_PER_USER} 次 AI 食譜用完了，明天再來。` };
+  const props = PropertiesService.getScriptProperties(), tk = `ai_total_${day}`;
+  if (Number(props.getProperty(tk) || 0) >= AI_PER_DAY) return { ok: false, error: "今天全站的 AI 次數用完了，明天再來。" };
+
+  const prompt = [
+    "你是幫台灣大學生把剩食煮完的料理助手。請設計 1 道一人份料理，用台灣繁體中文回答。",
+    `可用設備：${equip.length ? equip.join("、") : "微波爐、電鍋、快煮鍋或免開火，任選一種"}。只能用這些設備，宿舍沒有瓦斯爐和烤箱。`,
+    rescued.length ? `今天買到的惜食（已煮熟的餐盒或配菜，請拿來改造）：${rescued.join("、")}。` : "",
+    ings.length || extra ? `手邊食材：${[...ings, extra].filter(Boolean).join("、")}。` : "",
+    "以上面的食材為主，可以另外假設有鹽、醬油、糖、胡椒、食用油、水這些基本調味料，其他食材盡量不要加。",
+    "30 分鐘內做完，步驟 3 到 6 步，每步一句話、寫出微波或加熱的時間。",
+    "剩菜或惜食要加熱到全熱、冒煙；生肉、生蛋要煮到全熟。",
+    "kcal 與 protein（公克）是整份的估算值；ingredients 的 amount 寫份量，例如「1 碗」「100 g」。",
+    "tip 寫一句保存或變化的小提醒。",
+  ].filter(Boolean).join("\n");
+  const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }],
+                    generationConfig: { temperature: 0.9, responseMimeType: "application/json", responseSchema: AI_SCHEMA } };
+
+  let res = null;
+  for (const model of GEMINI_MODELS) {
+    res = UrlFetchApp.fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: "post", contentType: "application/json", headers: { "x-goog-api-key": key },
+      payload: JSON.stringify(payload), muteHttpExceptions: true,
+    });
+    if (res.getResponseCode() !== 404) break;
+  }
+  const code = res.getResponseCode();
+  if (code !== 200) {
+    console.error(`Gemini ${code}: ${res.getContentText().slice(0, 500)}`);
+    return { ok: false, error: code === 429 ? "AI 現在太忙，等一下再試。" : code === 400 || code === 403 ? "AI 金鑰有問題，請檢查 GEMINI_KEY。" : "AI 暫時沒有回應，等一下再試。" };
+  }
+  let r;
+  try {
+    const data = JSON.parse(res.getContentText());
+    r = JSON.parse(data.candidates[0].content.parts.map((p) => p.text || "").join(""));
+  } catch (err) {
+    console.error(`Gemini 回傳無法解析：${res.getContentText().slice(0, 500)}`);
+    return { ok: false, error: "AI 這次的回答格式不對，再按一次試試。" };
+  }
+  const recipe = {
+    name: clip_(r.name, 30), equip: EQUIPS.includes(r.equip) ? r.equip : (equip[0] || "微波爐"),
+    minutes: Math.max(1, Math.min(60, Math.round(+r.minutes || 10))),
+    kcal: Math.max(0, Math.round(+r.kcal || 0)), protein: Math.max(0, Math.round((+r.protein || 0) * 10) / 10),
+    ingredients: (Array.isArray(r.ingredients) ? r.ingredients : []).slice(0, 10).map((x) => ({ name: clip_(x && x.name, 20), amount: clip_(x && x.amount, 20) })).filter((x) => x.name),
+    steps: (Array.isArray(r.steps) ? r.steps : []).slice(0, 8).map((s) => clip_(s, 120)).filter(Boolean),
+    tip: clip_(r.tip, 120),
+  };
+  if (!recipe.name || !recipe.steps.length) return { ok: false, error: "AI 這次沒有想出完整的食譜，再按一次試試。" };
+
+  cache.put(uk, String(used + 1), 21600);
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try { props.setProperty(tk, String(Number(props.getProperty(tk) || 0) + 1)); } finally { lock.releaseLock(); }
+  return { ok: true, recipe, left: AI_PER_USER - used - 1 };
+}
+
+// 在編輯器選這個函式按「執行」：第一次會要求「連線到外部服務」的授權，並測試金鑰能不能用
+function testGemini() {
+  const r = aiRecipe_({ equip: ["微波爐"], ings: ["蛋", "白飯"], rescued: ["好吃雞肉飯"], user: "editor-test" });
+  console.log(JSON.stringify(r, null, 2));
 }
 
 // 「19:15」「19:15:00」「下午 7:15:00」都統一成 19:15

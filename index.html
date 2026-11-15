@@ -18,7 +18,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@900&family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-  <link rel="stylesheet" href="css/style.css?v=20261115b">
+  <link rel="stylesheet" href="css/style.css?v=20261115c">
 </head>
 <body>
   <header class="topbar">
@@ -245,6 +245,18 @@
             </select>
           </label>
         </div>
+        <section class="ai-box" id="aiBox" aria-labelledby="h-ai" hidden>
+          <div class="ai-head">
+            <span class="ai-mark" aria-hidden="true">AI</span>
+            <div><h4 id="h-ai">找不到想煮的？請 AI 想一道</h4><p id="aiUses">依你上面選的設備和食材，由 Gemini 產生一道新食譜。</p></div>
+          </div>
+          <div class="ai-form">
+            <label class="ai-extra"><span>其他食材（選填）</span><input type="text" id="aiExtra" maxlength="60" placeholder="例如：吐司、起司、泡麵"></label>
+            <button type="button" class="btn" id="aiGo">請 AI 想一道</button>
+          </div>
+          <p class="form-error" id="aiErr" role="alert"></p>
+          <div id="aiOut" aria-live="polite"></div>
+        </section>
         <ul class="recipes" id="recipes"></ul>
         </div>
       </div>
@@ -462,14 +474,14 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <!-- ?v= 是版本號：改了 css 或 js 之後一起改，瀏覽器才不會拿新網頁配舊程式 -->
-  <script src="js/config.js?v=20261115b"></script>
-  <script src="data/shops.js?v=20261115b"></script>
-  <script src="data/listings.js?v=20261115b"></script>
-  <script src="data/foods.js?v=20261115b"></script>
-  <script src="data/dris.js?v=20261115b"></script>
-  <script src="data/recipes.js?v=20261115b"></script>
-  <script src="data/meals.js?v=20261115b"></script>
-  <script src="data/stats.js?v=20261115b"></script>
-  <script src="js/app.js?v=20261115b"></script>
+  <script src="js/config.js?v=20261115c"></script>
+  <script src="data/shops.js?v=20261115c"></script>
+  <script src="data/listings.js?v=20261115c"></script>
+  <script src="data/foods.js?v=20261115c"></script>
+  <script src="data/dris.js?v=20261115c"></script>
+  <script src="data/recipes.js?v=20261115c"></script>
+  <script src="data/meals.js?v=20261115c"></script>
+  <script src="data/stats.js?v=20261115c"></script>
+  <script src="js/app.js?v=20261115c"></script>
 </body>
 </html>

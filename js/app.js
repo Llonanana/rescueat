@@ -848,9 +848,60 @@
       <details class="recipe-steps"><summary>看做法・${r.steps.length} 步</summary><ol>${r.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
         <button type="button" class="linklike made-it" data-share-recipe="${esc(r.name)}">我做了這道，分享到惜食圈（+${POINTS.post} 點）</button></details>
     </li>`).join("") : `<li class="empty">${favOnly ? "還沒有符合條件的收藏食譜。點食譜右上角的 ☆ 就能收藏。" : "這個設備還沒有食譜。取消一個設備條件看看。"}</li>`;
+    if (CFG.APPS_SCRIPT_URL) aiHint();
   }
 
   $("#favOnly").addEventListener("change", renderRecipes);
+
+  // ---------- AI 食譜（Gemini，經 Apps Script 呼叫，金鑰不在網頁裡；沒接後端時不顯示） ----------
+  $("#aiBox").hidden = !CFG.APPS_SCRIPT_URL;
+  const todayRescued = () => [...new Set(reservations.flatMap((r) => (r.items || []).map((x) => x.name)))];
+  // 告訴使用者 AI 會用哪些條件：上面選的設備、食材，加上今天訂的惜食
+  function aiHint() {
+    const parts = [rSel.equip.size ? [...rSel.equip].join("、") : "任一設備", ...rSel.ing];
+    const res = todayRescued();
+    $("#aiUses").innerHTML = rSel.ing.size || res.length
+      ? `會用：${esc(parts.join("、"))}${res.length ? `，加上今天訂的 <b>${esc(res.join("、"))}</b>` : ""}`
+      : "先在上面選手邊食材，或在下面寫其他食材，AI 會依你的設備想一道新食譜。";
+  }
+  function aiCard(r) {
+    const k = EQ_KEY[r.equip] || "mw";
+    return `<article class="recipe ai-recipe eq-${k}">
+      <div class="recipe-top"><span class="equip eq-${k}">${esc(r.equip)}</span><span class="ai-tag">AI 產生</span></div>
+      <h4>${esc(r.name)}</h4>
+      <ul class="recipe-ings">${r.ingredients.map((x) => `<li>${esc(x.name)}<small>${esc(x.amount)}</small></li>`).join("")}</ul>
+      <dl class="recipe-stats">
+        <div><dt>熱量（估）</dt><dd>${fmt(r.kcal)}<small>大卡</small></dd></div>
+        <div><dt>蛋白質（估）</dt><dd>${fmt(r.protein, 1)}<small>g</small></dd></div>
+        <div><dt>時間</dt><dd>${r.minutes}<small>分鐘</small></dd></div>
+      </dl>
+      <ol class="ai-steps">${r.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
+      ${r.tip ? `<p class="ai-tip">${esc(r.tip)}</p>` : ""}
+      <p class="ai-note">由 Gemini 產生，未經營養師審閱；熱量與蛋白質為估算值，僅供參考。</p>
+    </article>`;
+  }
+  // 訪客也能用：沒登入時用這台裝置的代號計算每天次數
+  const deviceId = (() => { let d = store.get("re_device", ""); if (!d) { d = `d${Math.random().toString(36).slice(2, 10)}`; store.set("re_device", d); } return d; })();
+  $("#aiGo").addEventListener("click", async () => {
+    const btn = $("#aiGo"), err = $("#aiErr"), extra = $("#aiExtra").value.trim();
+    err.textContent = "";
+    if (!rSel.ing.size && !todayRescued().length && !extra) { err.textContent = "先在上面選一樣手邊食材，或在「其他食材」寫一樣。"; return; }
+    btn.disabled = true; btn.textContent = "AI 想食譜中…";
+    $("#aiOut").innerHTML = `<p class="ai-wait">通常要 5 到 15 秒。</p>`;
+    try {
+      const res = await fetch(CFG.APPS_SCRIPT_URL, { method: "POST", signal: AbortSignal.timeout(60000),
+        body: JSON.stringify({ action: "aiRecipe", equip: [...rSel.equip], ings: [...rSel.ing], rescued: todayRescued(), extra, user: myId || deviceId }) });
+      const data = await res.json();
+      if (!data.ok) { err.textContent = data.error || "AI 暫時沒有回應，等一下再試。"; $("#aiOut").innerHTML = ""; return; }
+      $("#aiOut").innerHTML = aiCard(data.recipe);
+      btn.dataset.again = "1";
+      toast(`AI 食譜好了・今天還能用 ${data.left} 次`);
+    } catch {
+      err.textContent = "連不到 AI，請檢查網路後再試一次。"; $("#aiOut").innerHTML = "";
+    } finally {
+      btn.disabled = false; btn.textContent = btn.dataset.again ? "再想一道" : "請 AI 想一道";
+    }
+  });
 
   // ---------- 回饋：惜食點數、等級、徽章 ----------
   // 全部由紀錄推算、不另外存分數：取消預訂或刪除貼文，點數自然跟著變
@@ -1339,7 +1390,7 @@
   // ---------- 啟動 ----------
   // 各區分開更新：某一區出錯時，其他區和預訂結果照樣顯示，不會要按第二次才出現
   function renderAll() {
-    for (const fn of [renderListings, renderCombos, () => $("#view-nutri").classList.contains("is-active") && renderNutrition()]) {
+    for (const fn of [renderListings, renderCombos, () => $("#view-nutri").classList.contains("is-active") && renderNutrition(), () => CFG.APPS_SCRIPT_URL && aiHint()]) {
       try { fn(); } catch (err) { console.error(err); }
     }
   }
