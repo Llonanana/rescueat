@@ -223,7 +223,8 @@ function delPost_(id, user) {
 
 // ---------- AI 食譜（Gemini） ----------
 // 金鑰放在「專案設定 → 指令碼屬性」的 GEMINI_KEY，不寫在程式裡
-const GEMINI_MODELS = ["gemini-flash-latest", "gemini-2.5-flash"];   // 第一個找不到時改用下一個
+// 依序嘗試：找不到（404）或忙線（429、500、503）就換下一個；lite 版比較少塞車
+const GEMINI_MODELS = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-flash-lite-latest", "gemini-2.5-flash-lite"];
 const AI_PER_USER = 5;      // 每人每天幾次
 const AI_PER_DAY = 200;     // 全站每天幾次，避免網址公開後額度被用光
 const EQUIPS = ["微波爐", "電鍋", "快煮鍋", "免開火"];
@@ -279,12 +280,14 @@ function aiRecipe_(b) {
       method: "post", contentType: "application/json", headers: { "x-goog-api-key": key },
       payload: JSON.stringify(payload), muteHttpExceptions: true,
     });
-    if (res.getResponseCode() !== 404) break;
+    const c = res.getResponseCode();
+    if (![404, 429, 500, 503].includes(c)) break;
+    console.warn(`Gemini ${model} 回 ${c}，改用下一個模型`);
   }
   const code = res.getResponseCode();
   if (code !== 200) {
     console.error(`Gemini ${code}: ${res.getContentText().slice(0, 500)}`);
-    return { ok: false, error: code === 429 ? "AI 現在太忙，等一下再試。" : code === 400 || code === 403 ? "AI 金鑰有問題，請檢查 GEMINI_KEY。" : "AI 暫時沒有回應，等一下再試。" };
+    return { ok: false, error: code === 429 || code === 503 ? "AI 現在太多人在用，等一兩分鐘再試。" : code === 400 || code === 403 ? "AI 金鑰有問題，請檢查 GEMINI_KEY。" : "AI 暫時沒有回應，等一下再試。" };
   }
   let r;
   try {
