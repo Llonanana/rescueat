@@ -357,7 +357,7 @@
           <small>$${its.reduce((t, x) => t + x.deal, 0)}，${esc(until)} 前到店付款取餐</small>
           ${me && its.length ? `<button type="button" class="linklike order-share" data-share-item="${esc(`${its[0].shop}|${its[0].name}`)}">取餐了？開箱分享 +${POINTS.post} 點</button>` : ""}
         </div>
-        ${CFG.APPS_SCRIPT_URL ? "" : `<button class="linklike" data-cancel="${i}">取消</button>`}
+        <button class="linklike" data-cancel="${i}">取消</button>
       </li>`;
     }).join("")}</ul>` : "";
   }
@@ -414,7 +414,19 @@
     const d = e.target.closest("[data-cancel]");
     if (d) cancelReservation(+d.dataset.cancel);
   });
-  function cancelReservation(i) {
+  async function cancelReservation(i) {
+    const r0 = reservations[i];
+    if (!r0 || !confirm(`取消取餐碼 ${r0.code} 的預訂？`)) return;
+    // 接上試算表時先請後端把份數加回去；失敗就不動本機紀錄，避免兩邊不一致
+    if (CFG.APPS_SCRIPT_URL) {
+      toast("取消中…");
+      try {
+        const res = await fetch(CFG.APPS_SCRIPT_URL, { method: "POST", signal: AbortSignal.timeout(20000), body: JSON.stringify({ action: "cancel", code: r0.code, itemIds: r0.itemIds }) });
+        if (!(await res.json()).ok) throw new Error("failed");
+      } catch { toast("取消沒有成功，請檢查網路後再試一次。"); return; }
+    }
+    i = reservations.indexOf(r0);
+    if (i < 0) return;
     const [r] = reservations.splice(i, 1);
     r.itemIds.forEach((id) => { const it = items.find((x) => x.id === id); if (it) it.qty += 1; });
     reservationsAll = reservationsAll.filter((x) => x !== r);
@@ -490,7 +502,7 @@
         ${unlocked.map((b) => `<li class="badge-new">解鎖徽章：<b>${esc(b.name)}</b></li>`).join("")}
         ${me ? `<li>取餐後到「我的預訂」按「開箱分享」，再得 +${POINTS.post} 點</li>` : ""}
       </ul>
-      ${CFG.APPS_SCRIPT_URL ? "" : `<p class="hint">示範模式：預訂只存在這台裝置，可以在剩食地圖的「我的預訂」取消。</p>`}`;
+      <p class="hint">${CFG.APPS_SCRIPT_URL ? "臨時不能去的話，可以在剩食地圖的「我的預訂」取消，份數會放回給其他人。" : "示範模式：預訂只存在這台裝置，可以在剩食地圖的「我的預訂」取消。"}</p>`;
     $("#dlgConfirm").hidden = true;
     const cancelBtn = $(".dlg-actions .ghost"); cancelBtn.textContent = "關閉";
     dlg.returnValue = "";

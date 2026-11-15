@@ -123,6 +123,7 @@ function doPost(e) {
   if (body.action === "like") return toggleLike_(String(body.id || ""), String(body.user || ""));
   if (body.action === "delPost") return delPost_(String(body.id || ""), String(body.user || ""));
   if (body.action === "aiRecipe") return json_(aiRecipe_(body));
+  if (body.action === "cancel") return json_(cancel_(String(body.code || ""), Array.isArray(body.itemIds) ? body.itemIds.map(String) : []));
   if (body.action !== "reserve" || !Array.isArray(body.itemIds)) return json_({ error: "unknown action" });
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);               // 同時有人預訂時，避免把份數扣成負的
@@ -148,6 +149,32 @@ function doPost(e) {
   } finally {
     lock.releaseLock();
   }
+}
+
+// 取消預訂：份數加回 listings，reservations 那筆標「已取消」（不刪，店家查得到）
+// 用取餐碼＋品項比對，從最新的往回找第一筆還沒取消的
+function cancel_(code, itemIds) {
+  if (!code || !itemIds.length) return { ok: false, error: "資料不完整" };
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    const ss = SpreadsheetApp.getActive(), rs = ss.getSheetByName("reservations");
+    const STATUS_COL = RESERVATION_HEAD.length + 1;
+    if (rs.getRange(1, STATUS_COL).getDisplayValue() !== "status") rs.getRange(1, STATUS_COL).setValue("status").setFontWeight("bold");
+    const rows = rs.getRange(1, 1, rs.getLastRow(), STATUS_COL).getDisplayValues();
+    let row = -1;
+    for (let i = rows.length - 1; i > 0; i--) {
+      if (rows[i][1] === code && rows[i][2] === itemIds.join(",") && rows[i][STATUS_COL - 1] !== "已取消") { row = i + 1; break; }
+    }
+    if (row < 0) return { ok: true, already: true };     // 找不到或已取消過：當作已取消，不重複加回份數
+    const sheet = ss.getSheetByName("listings"), values = sheet.getDataRange().getValues();
+    const idCol = values[0].indexOf("id"), qtyCol = values[0].indexOf("qty");
+    for (const id of itemIds) {
+      const r = values.findIndex((x, i) => i > 0 && String(x[idCol]) === id);
+      if (r > 0) { values[r][qtyCol] = Number(values[r][qtyCol]) + 1; sheet.getRange(r + 1, qtyCol + 1).setValue(values[r][qtyCol]); }
+    }
+    rs.getRange(row, STATUS_COL).setValue("已取消");
+    return { ok: true };
+  } finally { lock.releaseLock(); }
 }
 
 // ---------- 惜食圈 ----------
