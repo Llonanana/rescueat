@@ -927,30 +927,15 @@
   // ---------- 惜食圈（沒接後端時貼文只存在這台瀏覽器；接上 Apps Script 後所有人看得到） ----------
   const KIND = { cook: "剩食料理", unbox: "惜食開箱", tip: "省錢撇步" };
   const ago = (iso) => { const m = (Date.now() - new Date(iso)) / 60000; return m < 1 ? "剛剛" : m < 60 ? `${Math.floor(m)} 分鐘前` : m < 1440 ? `${Math.floor(m / 60)} 小時前` : `${Math.floor(m / 1440)} 天前`; };
-  // 示範貼文：時間以第一次打開為準往回推，讓動態看起來是最近的
-  function seedPosts() {
-    const t = (h) => new Date(Date.now() - h * 3600000).toISOString();
-    const likes = (n) => [...Array(n)].map((_, i) => `demo${i}`);
-    return [
-      { id: "s1", demo: true, name: "小安・資管二", kind: "cook", recipe: "微波雞腿高麗菜炒飯", at: t(2), likes: likes(12),
-        text: "昨晚在雞肉本家拿的雞肉一份吃不完，今天加剩白飯和高麗菜微波 4 分鐘，變成炒飯！宿舍只有微波爐也做得出來。" },
-      { id: "s2", demo: true, name: "阿哲", kind: "unbox", item: { id: "chickenhome-26", name: "好吃雞肉飯", shop: "chickenhome" }, rate: 5, at: t(5), likes: likes(8),
-        text: "8 點去拿還是熱的，配菜有高麗菜、油豆腐、半顆滷蛋，$100 很夠吃。" },
-      { id: "s3", demo: true, name: "宿舍 302", kind: "tip", at: t(20), likes: likes(15),
-        text: "組一餐選 $80 也組得出來：楽坡加購雞胸＋加購蔬菜＋蛋白盒子的黑米飯，三樣不到 $80，蛋白質快 20 g。" },
-      { id: "s4", demo: true, name: "Mina", kind: "cook", recipe: "電鍋番茄豆腐雞湯", at: t(27), likes: likes(6),
-        text: "蛋白盒子的雞胸放冰箱一天，丟進電鍋跟番茄豆腐一起煮，外鍋一杯水，很適合期中考週。" },
-      { id: "s5", demo: true, name: "Ken・企管三", kind: "unbox", item: { id: "getpower-12", name: "椒鹽水煮雞胸餐盒", shop: "getpower" }, rate: 4, at: t(49), likes: likes(4),
-        text: "GET POWER 比較早打烊，5 點半就開始惜食價。雞胸很嫩，飯有點少，男生可能要再加一份主食。" },
-    ];
-  }
-  let posts = store.get("re_posts", null);
-  if (!Array.isArray(posts)) { posts = seedPosts(); store.set("re_posts", posts); }
+  // 只顯示真的貼文；舊版存在這台裝置的示範貼文一併清掉
+  let posts = store.get("re_posts", []);
+  if (!Array.isArray(posts)) posts = [];
+  posts = posts.filter((p) => !p.demo);
   // 舊版用 email 記作者和按讚，換成會員代號
   posts.forEach((p) => { if (/@/.test(p.by || "")) p.by = idOf(p.by); p.likes = (p.likes || []).map((u) => (/@/.test(u) ? idOf(u) : u)); });
   // 照片佔空間，存不下時要讓使用者知道，所以不用 store.set 的靜默失敗
   const savePosts = () => { try { localStorage.setItem("re_posts", JSON.stringify(posts)); return true; } catch { return false; } };
-  // 接上後端時：貼文以試算表為準，示範貼文照樣留著；這台裝置只當快取
+  // 接上後端時：貼文以試算表為準；這台裝置只當快取
   const API = CFG.APPS_SCRIPT_URL;
   const postApi = async (body) => {
     const res = await fetch(API, { method: "POST", body: JSON.stringify(body), signal: AbortSignal.timeout(20000) });
@@ -966,10 +951,9 @@
         const res = await fetch(`${API}?action=posts`, { signal: AbortSignal.timeout(15000) });
         const data = await res.json();
         if (!Array.isArray(data.posts)) throw new Error("bad data");
-        const demo = posts.filter((p) => p.demo);
-        posts = [...(demo.length ? demo : seedPosts()), ...data.posts.filter((p) => p.id && KIND[p.kind])];
+        posts = data.posts.filter((p) => p.id && KIND[p.kind]);
         // 照片太佔空間，快取只留文字
-        try { localStorage.setItem("re_posts", JSON.stringify(posts.map((p) => (p.demo ? p : { ...p, img: "" })))); } catch { /* 存不下就不快取 */ }
+        try { localStorage.setItem("re_posts", JSON.stringify(posts.map((p) => ({ ...p, img: "" })))); } catch { /* 存不下就不快取 */ }
         return true;
       } catch { return false; } finally { syncing = null; }
     })();
