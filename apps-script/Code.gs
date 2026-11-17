@@ -250,8 +250,10 @@ function delPost_(id, user) {
 
 // ---------- AI 食譜（Gemini） ----------
 // 金鑰放在「專案設定 → 指令碼屬性」的 GEMINI_KEY，不寫在程式裡
-// 依序嘗試：找不到（404）或忙線（429、500、503）就換下一個；lite 版比較少塞車
-const GEMINI_MODELS = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-flash-lite-latest", "gemini-2.5-flash-lite"];
+// 依序嘗試：找不到（404）或忙線（429、500、503）就換下一個。
+// lite 版回應最快（幾秒內）、一人份食譜品質夠用，所以排前面；大模型只在 lite 忙線時才用
+const GEMINI_MODELS = ["gemini-2.5-flash-lite", "gemini-flash-lite-latest", "gemini-2.5-flash", "gemini-flash-latest"];
+const AI_TIME_BUDGET = 40000;   // 已經花超過 40 秒就不再換下一個模型，避免使用者等太久
 const AI_PER_USER = 5;      // 每人每天幾次
 const AI_PER_DAY = 200;     // 全站每天幾次，避免網址公開後額度被用光
 const EQUIPS = ["微波爐", "電鍋", "快煮鍋", "免開火"];
@@ -302,14 +304,26 @@ function aiRecipe_(b) {
                     generationConfig: { temperature: 0.9, responseMimeType: "application/json", responseSchema: AI_SCHEMA } };
 
   let res = null;
+  const start = Date.now();
   for (const model of GEMINI_MODELS) {
-    res = UrlFetchApp.fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "post", contentType: "application/json", headers: { "x-goog-api-key": key },
-      payload: JSON.stringify(payload), muteHttpExceptions: true,
-    });
+    if (res && Date.now() - start > AI_TIME_BUDGET) break;
+    // 2.5 系列關掉「先想再答」的思考模式：食譜用不到，關掉快很多（-latest 別名的模型不一定支援這個設定，就不加）
+    const body = /^gemini-2\.5-/.test(model)
+      ? { ...payload, generationConfig: { ...payload.generationConfig, thinkingConfig: { thinkingBudget: 0 } } } : payload;
+    const t = Date.now();
+    try {
+      res = UrlFetchApp.fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: "post", contentType: "application/json", headers: { "x-goog-api-key": key },
+        payload: JSON.stringify(body), muteHttpExceptions: true,
+      });
+    } catch (err) {     // 連線逾時等錯誤：當作忙線，換下一個
+      console.warn(`Gemini ${model} 連線失敗（${err}），改用下一個模型`);
+      res = { getResponseCode: () => 503, getContentText: () => String(err) };
+      continue;
+    }
     const c = res.getResponseCode();
+    console.log(`Gemini ${model} 回 ${c}，花 ${((Date.now() - t) / 1000).toFixed(1)} 秒`);
     if (![404, 429, 500, 503].includes(c)) break;
-    console.warn(`Gemini ${model} 回 ${c}，改用下一個模型`);
   }
   const code = res.getResponseCode();
   if (code !== 200) {

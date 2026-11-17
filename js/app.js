@@ -900,7 +900,9 @@
     err.textContent = "";
     if (!rSel.ing.size && !todayRescued().length && !extra) { err.textContent = "先在上面選一樣手邊食材，或在「其他食材」寫一樣。"; return; }
     btn.disabled = true; btn.classList.add("is-busy"); $("span", btn).textContent = "想食譜中…";
-    $("#aiOut").innerHTML = `<div class="ai-skel" role="status"><i></i><i></i><i></i><p>AI 正在想食譜，通常要 10 到 30 秒</p></div>`;
+    $("#aiOut").innerHTML = `<div class="ai-skel" role="status"><i></i><i></i><i></i><p>AI 正在想食譜，通常 5 到 20 秒</p></div>`;
+    // 等太久時換一句話，讓人知道還在跑、不是當掉
+    const slow = setTimeout(() => { const p = $("#aiOut .ai-skel p"); if (p) p.textContent = "比平常久一點，AI 可能正忙，再等一下…"; }, 25000);
     try {
       const res = await fetch(CFG.APPS_SCRIPT_URL, { method: "POST", signal: AbortSignal.timeout(90000),
         body: JSON.stringify({ action: "aiRecipe", equip: [...rSel.equip], ings: [...rSel.ing], rescued: todayRescued(), extra, user: myId || deviceId }) });
@@ -909,9 +911,11 @@
       $("#aiOut").innerHTML = aiCard(data.recipe);
       btn.dataset.again = "1";
       toast(`AI 食譜好了・今天還能用 ${data.left} 次`);
-    } catch {
-      err.textContent = "連不到 AI，請檢查網路後再試一次。"; $("#aiOut").innerHTML = "";
+    } catch (e) {
+      err.textContent = e && e.name === "TimeoutError" ? "AI 太久沒回應，請再按一次。" : "連不到 AI，請檢查網路後再試一次。";
+      $("#aiOut").innerHTML = "";
     } finally {
+      clearTimeout(slow);
       btn.disabled = false; btn.classList.remove("is-busy"); $("span", btn).textContent = btn.dataset.again ? "再想一道" : "幫我想一道";
     }
   });
