@@ -18,7 +18,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@900&family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-  <link rel="stylesheet" href="css/style.css?v=20261117b">
+  <link rel="stylesheet" href="css/style.css?v=20261118a">
 </head>
 <body>
   <header class="topbar">
@@ -455,7 +455,7 @@
         <textarea id="postText" maxlength="200" rows="3" placeholder="用剩食做了什麼？用了哪些設備？"></textarea>
         <small class="text-count" id="postCount">0／200</small>
       </div>
-      <div data-for="cook"><label class="field">用了哪道食譜<select id="postRecipe"></select></label></div>
+      <div data-for="cook"><label class="field" id="postRecipeWrap">用了哪道食譜<select id="postRecipe"></select></label><p class="ai-attach" id="postAiNote" hidden></p></div>
       <div data-for="unbox" hidden>
         <label class="field">開箱哪一份惜食<select id="postItem"></select></label>
         <div class="rate" id="rateStars" role="group" aria-label="推薦程度">
@@ -475,14 +475,14 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <!-- ?v= 是版本號：改了 css 或 js 之後一起改，瀏覽器才不會拿新網頁配舊程式 -->
-  <script src="js/config.js?v=20261117b"></script>
-  <script src="data/shops.js?v=20261117b"></script>
-  <script src="data/listings.js?v=20261117b"></script>
-  <script src="data/foods.js?v=20261117b"></script>
-  <script src="data/dris.js?v=20261117b"></script>
-  <script src="data/recipes.js?v=20261117b"></script>
-  <script src="data/meals.js?v=20261117b"></script>
-  <script src="data/stats.js?v=20261117b"></script>
-  <script src="js/app.js?v=20261117b"></script>
+  <script src="js/config.js?v=20261118a"></script>
+  <script src="data/shops.js?v=20261118a"></script>
+  <script src="data/listings.js?v=20261118a"></script>
+  <script src="data/foods.js?v=20261118a"></script>
+  <script src="data/dris.js?v=20261118a"></script>
+  <script src="data/recipes.js?v=20261118a"></script>
+  <script src="data/meals.js?v=20261118a"></script>
+  <script src="data/stats.js?v=20261118a"></script>
+  <script src="js/app.js?v=20261118a"></script>
 </body>
 </html>

@@ -21,7 +21,8 @@ const ALLOW_DEMO = true;
 const LISTING_HEAD = ["id", "shop", "name", "cat", "price", "deal", "qty", "until", "kcal", "protein", "nsrc", "nnote", "micro", "fried"];
 const RESERVATION_HEAD = ["time", "code", "itemIds", "items"];
 // 惜食圈貼文。by 是會員代號（email 的雜湊，不存 email 本身），likes 存按讚的會員代號
-const POST_HEAD = ["id", "at", "by", "name", "kind", "text", "img", "recipe", "item", "rate", "likes"];
+// ai：分享 AI 食譜時附上的整道食譜（JSON）
+const POST_HEAD = ["id", "at", "by", "name", "kind", "text", "img", "recipe", "item", "rate", "likes", "ai"];
 const POST_KINDS = ["cook", "unbox", "tip"];
 const MAX_POSTS = 200;      // 只回傳最新的幾篇，避免越來越慢
 const CELL_MAX = 49000;     // 試算表一格最多 5 萬字，照片要比這個小
@@ -186,7 +187,21 @@ function rowToPost_(r) {
               text: String(o.text), img: String(o.img), likes: parse(o.likes, []) };
   if (o.recipe) p.recipe = String(o.recipe);
   if (o.item) { p.item = parse(o.item, null); p.rate = +o.rate || 0; }
+  if (o.ai) p.ai = parse(o.ai, null);
   return p;
+}
+// AI 食譜只留需要的欄位、限制長度，避免塞進奇怪或過大的內容
+function cleanAi_(a) {
+  if (!a || typeof a !== "object" || !a.name) return null;
+  const list = (x, n) => (Array.isArray(x) ? x : []).slice(0, n);
+  return {
+    name: clip_(a.name, 30), equip: EQUIPS.includes(a.equip) ? a.equip : "微波爐",
+    minutes: Math.max(1, Math.min(60, Math.round(+a.minutes || 10))),
+    kcal: Math.max(0, Math.round(+a.kcal || 0)), protein: Math.max(0, Math.round((+a.protein || 0) * 10) / 10),
+    ingredients: list(a.ingredients, 10).map((x) => ({ name: clip_(x && x.name, 20), amount: clip_(x && x.amount, 20) })).filter((x) => x.name),
+    steps: list(a.steps, 8).map((s) => clip_(s, 120)).filter(Boolean),
+    tip: clip_(a.tip, 120),
+  };
 }
 function readPosts_() {
   const sheet = postSheet_();
@@ -207,14 +222,19 @@ function addPost_(p) {
                  kind, text: clip_(p.text, 500), img, likes: [] };
   const item = kind === "unbox" && p.item ? { id: clip_(p.item.id, 40), name: clip_(p.item.name, 60), shop: clip_(p.item.shop, 40) } : null;
   const rate = item ? Math.max(1, Math.min(5, Math.round(+p.rate || 0))) : "";
-  const recipe = kind === "cook" ? clip_(p.recipe, 60) : "";
+  const ai = kind === "cook" ? cleanAi_(p.ai) : null;
+  const recipe = kind === "cook" && !ai ? clip_(p.recipe, 60) : "";
   // 開頭加 ' 避免文字被試算表當成公式（例如 =、+ 開頭）
   const safe = (s) => (/^[=+\-@]/.test(s) ? "'" + s : s);
   const lock = LockService.getScriptLock(); lock.waitLock(10000);
   try {
-    postSheet_().appendRow([post.id, post.at, post.by, safe(post.name), kind, safe(post.text), img, safe(recipe), item ? JSON.stringify(item) : "", rate, "[]"]);
+    const sheet = postSheet_();
+    // 舊的 posts 工作表沒有 ai 欄，第一次用到時補上標題
+    if (sheet.getRange(1, POST_HEAD.length).getDisplayValue() !== "ai") sheet.getRange(1, POST_HEAD.length).setValue("ai").setFontWeight("bold");
+    sheet.appendRow([post.id, post.at, post.by, safe(post.name), kind, safe(post.text), img, safe(recipe), item ? JSON.stringify(item) : "", rate, "[]", ai ? JSON.stringify(ai) : ""]);
   } finally { lock.releaseLock(); }
   if (recipe) post.recipe = recipe;
+  if (ai) post.ai = ai;
   if (item) { post.item = item; post.rate = rate; }
   return json_({ ok: true, post });
 }

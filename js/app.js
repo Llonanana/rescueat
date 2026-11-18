@@ -868,15 +868,30 @@
   // ---------- AI 食譜（Gemini，經 Apps Script 呼叫，金鑰不在網頁裡；沒接後端時不顯示） ----------
   $("#aiBox").hidden = !CFG.APPS_SCRIPT_URL;
   const todayRescued = () => [...new Set(reservations.flatMap((r) => (r.items || []).map((x) => x.name)))];
+  // 今天訂的惜食預設會給 AI 用，點一下可以拿掉（例如那份打算直接吃，不想拿來煮）
+  const aiSkip = new Set();
+  const aiRescued = () => todayRescued().filter((x) => !aiSkip.has(x));
+  let aiLast = null;      // 最近一次 AI 產生的食譜，分享到惜食圈時附上
   // 告訴使用者 AI 會用哪些條件：上面選的設備、食材，加上今天訂的惜食
   function aiHint() {
     const res = todayRescued();
     const chip = (cls, text) => `<span class="ai-chip ${cls}">${esc(text)}</span>`;
     const equip = rSel.equip.size ? [...rSel.equip].map((x) => chip(`eq eq-${EQ_KEY[x]}`, x)).join("") : chip("eq none", "任一設備");
+    const got = (x) => {
+      const off = aiSkip.has(x);
+      return `<button type="button" class="ai-chip got ${off ? "off" : ""}" data-ai-skip="${esc(x)}" aria-pressed="${!off}" aria-label="${off ? `把今天訂的${esc(x)}加回來` : `不要用今天訂的${esc(x)}`}"><small>今天訂的</small>${esc(x)}<i aria-hidden="true">${off ? "＋" : "×"}</i></button>`;
+    };
     $("#aiUses").innerHTML = rSel.ing.size || res.length
-      ? `<span class="ai-label">會用</span>${equip}${[...rSel.ing].map((x) => chip("", x)).join("")}${res.map((x) => `<span class="ai-chip got"><small>今天訂的</small>${esc(x)}</span>`).join("")}`
+      ? `<span class="ai-label">會用</span>${equip}${[...rSel.ing].map((x) => chip("", x)).join("")}${res.map(got).join("")}`
       : `<span class="ai-empty">在左邊選手邊的食材，或直接寫在下面，AI 會依你的設備想一道一人份料理。</span>`;
   }
+  $("#aiUses").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-ai-skip]"); if (!b) return;
+    const x = b.dataset.aiSkip;
+    aiSkip.has(x) ? aiSkip.delete(x) : aiSkip.add(x);
+    aiHint();
+    $(`#aiUses [data-ai-skip="${CSS.escape(x)}"]`)?.focus();
+  });
   function aiCard(r) {
     const k = EQ_KEY[r.equip] || "mw";
     return `<article class="recipe ai-recipe eq-${k}">
@@ -891,6 +906,7 @@
       <ol class="ai-steps">${r.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
       ${r.tip ? `<p class="ai-tip">${esc(r.tip)}</p>` : ""}
       <p class="ai-note">AI 產生的食譜，未經營養師審閱；熱量與蛋白質為估算值，僅供參考。</p>
+      <button type="button" class="linklike made-it" data-share-ai>我做了這道，分享到惜食圈（+${POINTS.post} 點）</button>
     </article>`;
   }
   // 訪客也能用：沒登入時用這台裝置的代號計算每天次數
@@ -898,16 +914,17 @@
   $("#aiGo").addEventListener("click", async () => {
     const btn = $("#aiGo"), err = $("#aiErr"), extra = $("#aiExtra").value.trim();
     err.textContent = "";
-    if (!rSel.ing.size && !todayRescued().length && !extra) { err.textContent = "先在上面選一樣手邊食材，或在「其他食材」寫一樣。"; return; }
+    if (!rSel.ing.size && !aiRescued().length && !extra) { err.textContent = "先在上面選一樣手邊食材，或在「其他食材」寫一樣。"; return; }
     btn.disabled = true; btn.classList.add("is-busy"); $("span", btn).textContent = "想食譜中…";
     $("#aiOut").innerHTML = `<div class="ai-skel" role="status"><i></i><i></i><i></i><p>AI 正在想食譜，通常 5 到 20 秒</p></div>`;
     // 等太久時換一句話，讓人知道還在跑、不是當掉
     const slow = setTimeout(() => { const p = $("#aiOut .ai-skel p"); if (p) p.textContent = "比平常久一點，AI 可能正忙，再等一下…"; }, 25000);
     try {
       const res = await fetch(CFG.APPS_SCRIPT_URL, { method: "POST", signal: AbortSignal.timeout(90000),
-        body: JSON.stringify({ action: "aiRecipe", equip: [...rSel.equip], ings: [...rSel.ing], rescued: todayRescued(), extra, user: myId || deviceId }) });
+        body: JSON.stringify({ action: "aiRecipe", equip: [...rSel.equip], ings: [...rSel.ing], rescued: aiRescued(), extra, user: myId || deviceId }) });
       const data = await res.json();
       if (!data.ok) { err.textContent = data.error || "AI 暫時沒有回應，等一下再試。"; $("#aiOut").innerHTML = ""; return; }
+      aiLast = data.recipe;
       $("#aiOut").innerHTML = aiCard(data.recipe);
       btn.dataset.again = "1";
       toast(`AI 食譜好了・今天還能用 ${data.left} 次`);
@@ -1055,6 +1072,19 @@
         <small>${fmt(r.kcal)} 大卡・蛋白質 ${fmt(r.protein, 1)} g・${r.min} 分鐘</small></span><span class="att-go">看做法 ›</span></button>`;
       act = `<button type="button" class="post-act" data-share-recipe="${esc(r.name)}">我也做了</button>`;
     }
+    // 附上的 AI 食譜：不在食譜庫裡，所以做法直接收在貼文裡，點開就看得到
+    const ai = p.ai;
+    if (ai && ai.name) {
+      const k = EQ_KEY[ai.equip] || "mw";
+      att = `<details class="post-att att-recipe att-ai eq-${k}">
+        <summary><span class="att-body"><span class="att-tags"><span class="equip eq-${k}">${esc(ai.equip)}</span><span class="ai-tag">AI 食譜</span></span><b>${esc(ai.name)}</b>
+        <small>約 ${fmt(ai.kcal)} 大卡・蛋白質約 ${fmt(ai.protein, 1)} g・${ai.minutes} 分鐘</small></span><span class="att-go">看做法 ›</span></summary>
+        ${(ai.ingredients || []).length ? `<p class="att-ings">${ai.ingredients.map((x) => `${esc(x.name)} ${esc(x.amount)}`).join("、")}</p>` : ""}
+        <ol class="ai-steps">${(ai.steps || []).map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
+        ${ai.tip ? `<p class="ai-tip">${esc(ai.tip)}</p>` : ""}
+        <p class="ai-note">AI 產生的食譜，熱量與蛋白質為估算值，僅供參考。</p></details>`;
+      act = `<button type="button" class="post-act" data-share-ai-post="${esc(p.id)}">我也做了</button>`;
+    }
     // 開箱的品項：店家、惜食價、星等；今晚還有就能直接去預訂
     if (p.item) {
       const s = shopById[p.item.shop], live = items.find((x) => x.id === p.item.id && x.qty > 0);
@@ -1119,8 +1149,14 @@
       : `<b>惜食點數</b><span>預訂 1 份 +${POINTS.rescue} 點，可升級、解鎖徽章</span><i>怎麼拿 ›</i>`;
   }
   // 發文視窗：可以先帶好類型、食譜或開箱的品項，使用者只要補一句話或一張照片
-  function openComposer(kind = "cook", { recipe = "", item = "" } = {}) {
+  let postAi = null;      // 這篇要附上的 AI 食譜（從 AI 食譜卡按分享時才有）
+  function openComposer(kind = "cook", { recipe = "", item = "", ai = null } = {}) {
     if (!me) { toast("登入會員後就能分享，發文可得惜食點數。"); location.hash = "account"; return; }
+    // 附 AI 食譜時不用再選食譜庫的食譜，改顯示要附上的那道
+    postAi = ai;
+    $("#postRecipeWrap").hidden = !!ai;
+    $("#postAiNote").hidden = !ai;
+    if (ai) $("#postAiNote").innerHTML = `<span class="ai-tag">AI 食譜</span><b>${esc(ai.name)}</b><small>${fmt(ai.kcal)} 大卡・${ai.minutes} 分鐘，會附上做法</small>`;
     // 開箱只能選自己預訂過的惜食
     const seen = new Set(), mineItems = [];
     for (const r of [...reservationsAll].reverse()) for (const x of r.items || []) {
@@ -1149,6 +1185,10 @@
     if (sr) openComposer("cook", { recipe: sr.dataset.shareRecipe });
     const si = e.target.closest("[data-share-item]");
     if (si) openComposer("unbox", { item: si.dataset.shareItem });
+    // AI 食譜卡的「我做了這道」，或惜食圈裡別人分享的 AI 食譜按「我也做了」
+    if (e.target.closest("[data-share-ai]") && aiLast) openComposer("cook", { ai: aiLast });
+    const sa = e.target.closest("[data-share-ai-post]");
+    if (sa) { const p = posts.find((x) => x.id === sa.dataset.shareAiPost); if (p && p.ai) openComposer("cook", { ai: p.ai }); }
   });
   $("#postRecipe").innerHTML = `<option value="">不指定</option>` + RECIPES.map((r) => `<option>${esc(r.name)}</option>`).join("");
   $$("#feedTabs [data-feed]").forEach((b) => b.addEventListener("click", () => {
@@ -1208,7 +1248,8 @@
       : postKind === "unbox" && !postRate ? "幫這份惜食打個分數。" : "";
     if (err.textContent) return;
     let p = { id: Date.now().toString(36), by: myId, name: me.name, kind: postKind, text, img: postImg, at: new Date().toISOString(), likes: [] };
-    if (postKind === "cook" && $("#postRecipe").value) p.recipe = $("#postRecipe").value;
+    if (postKind === "cook" && postAi) p.ai = postAi;
+    else if (postKind === "cook" && $("#postRecipe").value) p.recipe = $("#postRecipe").value;
     if (postKind === "unbox") { p.item = pick; p.rate = postRate; }
     if (API) {
       const label = btn.textContent;
@@ -1221,7 +1262,7 @@
       posts.push(p);
       if (!savePosts()) { posts.pop(); err.textContent = "這台裝置的儲存空間不夠，換一張小一點的照片，或刪掉舊貼文再試。"; return; }
     }
-    e.target.reset(); postImg = ""; postRate = 0; countText();
+    e.target.reset(); postImg = ""; postRate = 0; postAi = null; countText();
     $("#photoPreview").hidden = true; $("#photoPick").classList.remove("has-img");
     $$("#rateStars [data-rate]").forEach((x) => x.classList.remove("is-on"));
     const unlocked = newBadges();

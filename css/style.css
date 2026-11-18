@@ -949,3 +949,21 @@ button.post-att:hover { background: var(--green-bg); }
   .ai-form input { min-height: 44px; padding: 0 10px; }
   #aiGo { justify-content: center; min-height: 44px; border-radius: 9px; }
 }
+/* 今天訂的惜食：可以點掉，不給 AI 用 */
+button.ai-chip { font: inherit; font-size: .82rem; cursor: pointer; }
+.ai-chip.got i { font-style: normal; font-weight: 700; margin-left: 2px; }
+.ai-chip.got.off { background: var(--paper); border-color: var(--line); color: var(--muted); font-weight: 400; }
+.ai-chip.got.off small { text-decoration: line-through; }
+.ai-recipe .made-it { margin-top: 10px; }
+/* 發文視窗：要附上的 AI 食譜 */
+.ai-attach { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 0; padding: 10px 12px; background: var(--green-bg); border-radius: 6px; }
+.ai-attach small { font-size: .78rem; color: var(--muted); }
+.ai-attach[hidden], #postRecipeWrap[hidden] { display: none; }
+/* 惜食圈貼文裡的 AI 食譜：點開看做法 */
+.att-ai { display: block; }
+.att-ai summary { display: flex; align-items: center; gap: 12px; cursor: pointer; list-style: none; }
+.att-ai summary::-webkit-details-marker { display: none; }
+.att-tags { display: flex; gap: 6px; margin-bottom: 2px; }
+.att-ai .att-ings { margin: 10px 0 6px; font-size: .84rem; color: var(--ink-2); }
+.att-ai .ai-steps { font-size: .86rem; margin: 0 0 6px; }
+.att-ai .ai-tip { font-size: .8rem; }
