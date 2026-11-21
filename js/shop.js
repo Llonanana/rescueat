@@ -71,7 +71,9 @@
   }
 
   function render(r) {
-    items = r.items;
+    // 依類別排：完整餐盒、主食、蛋白質、蔬菜；同類別照試算表順序
+    const CAT = ["完整餐盒", "主食", "蛋白質", "蔬菜"], rank = (c) => (CAT.indexOf(c) + 5) % 5;
+    items = r.items.map((x, i) => ({ ...x, i })).sort((a, b) => rank(a.cat) - rank(b.cat) || a.i - b.i);
     $("#spItems").innerHTML = items.length ? items.map((x) => `
       <div class="sp-item" data-id="${esc(x.id)}">
         <p class="sp-name">${esc(x.name)}<small>${esc(x.cat)}・原價 $${x.price}</small></p>

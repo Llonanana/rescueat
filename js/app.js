@@ -427,7 +427,8 @@
     $$("#view-map .chip").forEach((c) => {
       $("small", c).textContent = items.filter((x) => x.qty > 0 && (c.dataset.cat === "全部" || x.cat === c.dataset.cat) && (!filt.micro || x.micro) && (!filt.shop || x.shop === filt.shop)).length;
     });
-    let list = items.filter((x) => (filt.cat === "全部" || x.cat === filt.cat) && (!filt.micro || x.micro) && (!filt.shop || x.shop === filt.shop));
+    // 份數 0 的品項不列（完整菜單都在試算表裡，今晚沒剩的不用出現）
+    let list = items.filter((x) => x.qty > 0 && (filt.cat === "全部" || x.cat === filt.cat) && (!filt.micro || x.micro) && (!filt.shop || x.shop === filt.shop));
     const by = {
       box: (a, b) => (b.cat === "完整餐盒") - (a.cat === "完整餐盒") || a.deal - b.deal,
       price: (a, b) => a.deal - b.deal,

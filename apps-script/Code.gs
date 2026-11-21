@@ -41,9 +41,9 @@ const SEED = [
   ["bonbox-9", "bonbox", "加購 蔬菜", "蔬菜", 30, 24, 3, "19:30", 42, 3, "official", "", false, false],
   ["bonbox-10", "bonbox", "加購 黑金麥飯", "主食", 20, 16, 4, "19:30", 282, 6, "official", "", false, false],
   ["bonbox-11", "bonbox", "加購 地瓜泥球", "主食", 20, 16, 3, "19:30", 46, 1, "official", "", false, false],
-  ["getpower-12", "getpower", "椒鹽水煮雞胸餐盒", "完整餐盒", 220, 176, 2, "18:45", 605, 43, "official", "", true, false],
-  ["getpower-13", "getpower", "泰式打拋雞胸餐盒", "完整餐盒", 220, 176, 1, "18:45", 596, 41, "official", "", true, false],
-  ["getpower-14", "getpower", "爐烤鮮時蔬餐盒", "完整餐盒", 190, 152, 2, "18:45", 510, 16, "official", "", true, false],
+  ["getpower-12", "getpower", "椒鹽水煮雞胸餐盒", "完整餐盒", 125, 100, 2, "18:45", 605, 43, "official", "", true, false],
+  ["getpower-13", "getpower", "泰式打拋雞胸餐盒", "完整餐盒", 125, 100, 1, "18:45", 596, 41, "official", "", true, false],
+  ["getpower-14", "getpower", "爐烤鮮時蔬餐盒", "完整餐盒", 110, 88, 2, "18:45", 510, 16, "official", "", true, false],
   ["proteinbox-15", "proteinbox", "香煎黑胡椒雞胸餐盒", "完整餐盒", 125, 100, 3, "19:45", 530, 30.2, "estimate", "官網只標示香煎雞胸系列三種口味為 526–535 大卡、蛋白質 29.9–30.6 g，取中間值", false, false],
   ["proteinbox-16", "proteinbox", "香煎海苔雞胸餐盒", "完整餐盒", 125, 100, 2, "19:45", 530, 30.2, "estimate", "官網只標示香煎雞胸系列三種口味為 526–535 大卡、蛋白質 29.9–30.6 g，取中間值", false, false],
   ["proteinbox-17", "proteinbox", "青蔥海鹽雞胸餐盒", "完整餐盒", 135, 108, 2, "19:45", 581, 30.1, "official", "", false, false],
@@ -61,7 +61,67 @@ const SEED = [
   ["chickenhome-29", "chickenhome", "獅子頭雞肉飯", "完整餐盒", 165, 132, 1, "20:15", 869, 50.7, "estimate", "店家未公布營養，以食藥署資料與假設份量估算：白飯 200 g、去骨雞腿肉 100 g、獅子頭 1 顆 90 g、高麗菜 50 g、油豆腐 30 g、滷蛋半顆、蔥油 5 g", false, false],
   ["chickenhome-30", "chickenhome", "單點 雞肉一份", "蛋白質", 90, 72, 2, "20:15", 157, 18.5, "estimate", "店家未公布營養，以食藥署資料與假設份量估算：去骨雞腿肉 100 g", false, false],
   ["chickenhome-31", "chickenhome", "單點 炒時蔬", "蔬菜", 40, 32, 3, "20:15", 65, 1.3, "estimate", "店家未公布營養，以食藥署資料與假設份量估算：高麗菜 100 g、炒菜油 5 g", false, false],
-  ["chickenhome-32", "chickenhome", "單點 白飯", "主食", 15, 12, 4, "20:15", 364, 6.2, "estimate", "店家未公布營養，以食藥署資料與假設份量估算：白飯 200 g", false, false]
+  ["chickenhome-32", "chickenhome", "單點 白飯", "主食", 15, 12, 4, "20:15", 364, 6.2, "estimate", "店家未公布營養，以食藥署資料與假設份量估算：白飯 200 g", false, false],
+  ["bonbox-33", "bonbox", "輕日照燒雞腿弁當", "完整餐盒", 149, 119, 0, "19:30", 562, 30, "official", "", false, false],
+  ["bonbox-34", "bonbox", "炒雞喜歡弁當", "完整餐盒", 129, 103, 0, "19:30", 557, 22, "official", "", false, false],
+  ["bonbox-35", "bonbox", "秘傳12牛排弁當", "完整餐盒", 189, 151, 0, "19:30", 548, 29, "official", "", false, false],
+  ["bonbox-36", "bonbox", "極選厚馥鮭魚弁當（限量）", "完整餐盒", 259, 207, 0, "19:30", 597, 31, "official", "", false, false],
+  ["bonbox-37", "bonbox", "厚切嫩雞胸弁當", "完整餐盒", 165, 132, 0, "19:30", 598, 51, "official", "", false, false],
+  ["bonbox-38", "bonbox", "川麻椒香雞胸弁當", "完整餐盒", 140, 112, 0, "19:30", 509, 31, "official", "", false, false],
+  ["bonbox-39", "bonbox", "浩克雞腿弁當", "完整餐盒", 165, 132, 0, "19:30", 767, 38, "official", "", false, false],
+  ["bonbox-40", "bonbox", "炙烤青花魚弁當", "完整餐盒", 189, 151, 0, "19:30", 932, 33, "official", "", false, false],
+  ["bonbox-41", "bonbox", "泰式酸甜魚弁當", "完整餐盒", 145, 116, 0, "19:30", 508, 25, "official", "", false, false],
+  ["bonbox-42", "bonbox", "檸香巴沙魚弁當", "完整餐盒", 140, 112, 0, "19:30", 474, 25, "official", "", false, false],
+  ["bonbox-43", "bonbox", "霜降62松阪豬弁當", "完整餐盒", 155, 124, 0, "19:30", 573, 24, "official", "", false, false],
+  ["bonbox-44", "bonbox", "椒鹽梅花豬弁當", "完整餐盒", 135, 108, 0, "19:30", 626, 33, "official", "", false, false],
+  ["bonbox-45", "bonbox", "胡麻牛老五弁當", "完整餐盒", 150, 120, 0, "19:30", 815, 38, "official", "", false, false],
+  ["bonbox-46", "bonbox", "海鹽牛老五弁當", "完整餐盒", 140, 112, 0, "19:30", 714, 37, "official", "", false, false],
+  ["bonbox-47", "bonbox", "深海魷船長弁當", "完整餐盒", 169, 135, 0, "19:30", 488, 25, "official", "", false, false],
+  ["bonbox-48", "bonbox", "綠野仙菇弁當（可素）", "完整餐盒", 125, 100, 0, "19:30", 458, 17, "official", "", false, false],
+  ["bonbox-49", "bonbox", "海陸白肉蛋白（無飯）", "蛋白質", 229, 183, 0, "19:30", 511, 53, "official", "", false, false],
+  ["bonbox-50", "bonbox", "蛙人紅肉蛋白（無飯）", "蛋白質", 279, 223, 0, "19:30", 810, 57, "official", "", false, false],
+  ["bonbox-51", "bonbox", "加購 楽坡炒雞", "蛋白質", 39, 31, 0, "19:30", "", "", "", "", false, false],
+  ["bonbox-52", "bonbox", "加購 椒鹽梅花豬", "蛋白質", 49, 39, 0, "19:30", "", "", "", "", false, false],
+  ["bonbox-53", "bonbox", "加購 川麻椒香雞胸", "蛋白質", 59, 47, 0, "19:30", "", "", "", "", false, false],
+  ["bonbox-54", "bonbox", "加購 海鹽牛老五", "蛋白質", 59, 47, 0, "19:30", "", "", "", "", false, false],
+  ["bonbox-55", "bonbox", "加購 檸香巴沙魚", "蛋白質", 59, 47, 0, "19:30", "", "", "", "", false, false],
+  ["bonbox-56", "bonbox", "加購 輕日照燒雞腿", "蛋白質", 69, 55, 0, "19:30", "", "", "", "", false, false],
+  ["bonbox-57", "bonbox", "加購 泰式酸甜魚", "蛋白質", 69, 55, 0, "19:30", "", "", "", "", false, false],
+  ["bonbox-58", "bonbox", "加購 胡麻牛老五", "蛋白質", 69, 55, 0, "19:30", "", "", "", "", false, false],
+  ["bonbox-59", "bonbox", "加購 霜降62松阪豬", "蛋白質", 79, 63, 0, "19:30", "", "", "", "", false, false],
+  ["bonbox-60", "bonbox", "加購 厚切嫩雞胸", "蛋白質", 89, 71, 0, "19:30", "", "", "", "", false, false],
+  ["bonbox-61", "bonbox", "加購 浩克雞腿", "蛋白質", 89, 71, 0, "19:30", "", "", "", "", false, false],
+  ["bonbox-62", "bonbox", "加購 深海魷船長", "蛋白質", 89, 71, 0, "19:30", "", "", "", "", false, false],
+  ["bonbox-63", "bonbox", "加購 炙烤青花魚", "蛋白質", 99, 79, 0, "19:30", "", "", "", "", false, false],
+  ["bonbox-64", "bonbox", "加購 秘傳12牛排", "蛋白質", 99, 79, 0, "19:30", "", "", "", "", false, false],
+  ["bonbox-65", "bonbox", "加購 極選厚馥鮭魚", "蛋白質", 160, 128, 0, "19:30", "", "", "", "", false, false],
+  ["bonbox-66", "bonbox", "加購 戀戀泡菜", "蔬菜", 39, 31, 0, "19:30", "", "", "", "", false, false],
+  ["getpower-67", "getpower", "塔香烘烤雞胸餐盒", "完整餐盒", 125, 100, 0, "18:45", 613, 43, "official", "", true, false],
+  ["getpower-68", "getpower", "南加州烤雞腿餐盒", "完整餐盒", 135, 108, 0, "18:45", 714, 48, "official", "", true, false],
+  ["getpower-69", "getpower", "蒜泥醬豬肉片餐盒", "完整餐盒", 125, 100, 0, "18:45", 623, 38, "official", "", true, false],
+  ["getpower-70", "getpower", "樹子汁蒸鱸魚餐盒", "完整餐盒", 140, 112, 0, "18:45", 555, 34, "official", "", true, false],
+  ["getpower-71", "getpower", "鹽烤馬加魚餐盒", "完整餐盒", 130, 104, 0, "18:45", 594, 29, "official", "", true, false],
+  ["getpower-72", "getpower", "大厚切烤鮭魚餐盒", "完整餐盒", 220, 176, 0, "18:45", 690, 44, "official", "", true, false],
+  ["getpower-73", "getpower", "十三香滷牛腱餐盒", "完整餐盒", 160, 128, 0, "18:45", 573, 34, "official", "", true, false],
+  ["proteinbox-74", "proteinbox", "麻油雞腿排餐盒", "完整餐盒", 145, 116, 0, "19:45", "", "", "", "", false, false],
+  ["proteinbox-75", "proteinbox", "醬濃香烤雞腿排餐盒", "完整餐盒", 145, 116, 0, "19:45", "", "", "", "", false, false],
+  ["proteinbox-76", "proteinbox", "紐奧良雞腿排餐盒", "完整餐盒", 135, 108, 0, "19:45", "", "", "", "", false, false],
+  ["proteinbox-77", "proteinbox", "日式鹽味雞胸餐盒", "完整餐盒", 130, 104, 0, "19:45", "", "", "", "", false, false],
+  ["proteinbox-78", "proteinbox", "乾碟香辣雞胸餐盒", "完整餐盒", 130, 104, 0, "19:45", "", "", "", "", false, false],
+  ["proteinbox-79", "proteinbox", "炭火燒肉雞胸餐盒", "完整餐盒", 135, 108, 0, "19:45", "", "", "", "", false, false],
+  ["proteinbox-80", "proteinbox", "香煎蒙特婁雞胸餐盒", "完整餐盒", 125, 100, 0, "19:45", "", "", "", "", false, false],
+  ["proteinbox-81", "proteinbox", "日式鹽味豬排餐盒", "完整餐盒", 150, 120, 0, "19:45", "", "", "", "", false, false],
+  ["proteinbox-82", "proteinbox", "乾碟香辣豬排餐盒", "完整餐盒", 150, 120, 0, "19:45", "", "", "", "", false, false],
+  ["proteinbox-83", "proteinbox", "菲力豬排餐盒", "完整餐盒", 145, 116, 0, "19:45", "", "", "", "", false, false],
+  ["proteinbox-84", "proteinbox", "壽喜牛五花餐盒", "完整餐盒", 145, 116, 0, "19:45", "", "", "", "", false, false],
+  ["proteinbox-85", "proteinbox", "薄鹽烤鮭魚餐盒", "完整餐盒", 180, 144, 0, "19:45", "", "", "", "", false, false],
+  ["proteinbox-86", "proteinbox", "無肉餐盒", "完整餐盒", 95, 76, 0, "19:45", "", "", "", "", false, false],
+  ["chickenhome-87", "chickenhome", "雙倍雞肉飯", "完整餐盒", 200, 160, 0, "20:15", 830, 52.1, "estimate", "店家未公布營養，以食藥署資料與假設份量估算：白飯 200 g、去骨雞腿肉 200 g、高麗菜 50 g、油豆腐 30 g、滷蛋半顆、蔥油 5 g", false, false],
+  ["chickenhome-88", "chickenhome", "咖哩獅子頭飯", "完整餐盒", 145, 116, 0, "20:15", 1010, 50.4, "estimate", "店家未公布營養，以食藥署資料與假設份量估算：白飯 200 g、獅子頭 2 顆 180 g、咖哩塊 20 g、高麗菜 50 g、油豆腐 30 g、滷蛋半顆、蔥油 5 g", false, false],
+  ["chickenhome-89", "chickenhome", "單點 獅子頭（一顆）", "蛋白質", 43, 34, 0, "20:15", 196, 17.1, "estimate", "店家未公布營養，以食藥署資料與假設份量估算：獅子頭 1 顆（豬絞肉 7 瘦 3 肥）90 g", false, false],
+  ["chickenhome-90", "chickenhome", "單點 水煮蛋", "蛋白質", 20, 16, 0, "20:15", 74, 7.0, "estimate", "店家未公布營養，以食藥署資料與假設份量估算：雞蛋 1 顆 55 g", false, false],
+  ["chickenhome-91", "chickenhome", "單點 黃金泡菜", "蔬菜", 39, 31, 0, "20:15", "", "", "", "", false, false],
+  ["chickenhome-92", "chickenhome", "單點 咖哩飯", "主食", 85, 68, 0, "20:15", 465, 7.3, "estimate", "店家未公布營養，以食藥署資料與假設份量估算：白飯 200 g、咖哩塊 20 g", false, false]
 ];
 
 // 只需執行一次。工作表已有資料時不會覆蓋，避免洗掉店家填的內容。
@@ -88,6 +148,34 @@ function setup() {
   }
   setupPosts_();
   userSheet_();
+}
+
+// 補齊完整菜單：已經在用的試算表執行一次就好。
+// 試算表裡沒有的品項加到最後（份數 0，店家有剩再改）；已有的品項只更新品名、類別、原價、營養這些菜單資料，
+// 不動店家填的份數、取餐截止；惜食價只有在高於新原價時才改回八折
+function addMenu() {
+  const sheet = SpreadsheetApp.getActive().getSheetByName("listings");
+  const values = sheet.getDataRange().getValues();
+  const col = (h) => LISTING_HEAD.indexOf(h);
+  const MENU_COLS = ["name", "cat", "price", "kcal", "protein", "nsrc", "nnote", "micro", "fried"];
+  let added = 0, updated = 0;
+  for (const s of SEED) {
+    const i = values.findIndex((r, n) => n > 0 && String(r[0]) === s[0]);
+    if (i < 0) {
+      const row = s.slice(); row[col("qty")] = 0;
+      sheet.appendRow(row);
+      sheet.getRange(sheet.getLastRow(), col("until") + 1).setNumberFormat("@").setValue(s[col("until")]);
+      added++;
+      continue;
+    }
+    let changed = false;
+    for (const h of MENU_COLS) {
+      if (String(values[i][col(h)]) !== String(s[col(h)])) { sheet.getRange(i + 1, col(h) + 1).setValue(s[col(h)]); changed = true; }
+    }
+    if (+values[i][col("deal")] > +s[col("price")]) { sheet.getRange(i + 1, col("deal") + 1).setValue(s[col("deal")]); changed = true; }
+    if (changed) updated++;
+  }
+  console.log(`新增 ${added} 樣、更新 ${updated} 樣菜單資料`);
 }
 
 // 已經建好試算表的人，只要再執行一次 setup（或這個函式）就會補上 posts 工作表
