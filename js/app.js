@@ -26,7 +26,7 @@
   // ---------- 本機儲存（失敗時退回記憶體） ----------
   const store = {
     get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
-    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* 私密瀏覽等情況 */ } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* 私密瀏覽等情況 */ } if (store.onSet) store.onSet(k); },
     del(k) { try { localStorage.removeItem(k); } catch { /* 私密瀏覽等情況 */ } },
   };
   const today = () => new Date().toLocaleDateString("sv");
@@ -51,6 +51,65 @@
   const dayName = (d = viewDate) => (d === today() ? "今天" : `${+d.slice(5, 7)}/${+d.slice(8)}`);
   const favs = { meals: [], menu: [], recipes: [], ...store.get(ukey("favs"), {}) };
   const saveFavs = () => store.set(ukey("favs"), favs);
+
+  // ---------- 雲端會員：接上後端時帳號存在試算表 users 工作表，換裝置登入資料還在 ----------
+  // 這幾樣資料一改就（延遲 1.5 秒）整包存到後端；打開網站時若別台裝置改過，就換成後端的版本
+  const SYNC_KEYS = ["eaten", "reservations", "profile", "favs", "badges"];
+  const cloud = !!(me && me.token && CFG.APPS_SCRIPT_URL);
+  const callApi = async (body) => (await fetch(CFG.APPS_SCRIPT_URL, { method: "POST", body: JSON.stringify(body), signal: AbortSignal.timeout(20000) })).json();
+  const userData = (email) => Object.fromEntries(SYNC_KEYS.map((k) => [k, store.get(`re_u:${email}:${k}`, null)]).filter(([, v]) => v !== null));
+  let quiet = false;
+  function putUserData(email, data, ver) {
+    quiet = true;
+    try {
+      for (const k of SYNC_KEYS) data && data[k] != null ? store.set(`re_u:${email}:${k}`, data[k]) : store.del(`re_u:${email}:${k}`);
+      store.set(`re_u:${email}:_ver`, ver || 0); store.del(`re_u:${email}:_dirty`);
+    } finally { quiet = false; }
+  }
+  let pushTimer = null;
+  function pushBody() {
+    const data = userData(me.email);
+    // 一格最多 5 萬字：紀錄太多時先丟掉最舊的飲食紀錄
+    while (data.eaten && data.eaten.length > 30 && JSON.stringify(data).length > 45000) data.eaten = data.eaten.slice(Math.ceil(data.eaten.length / 10));
+    return JSON.stringify({ action: "saveMe", token: me.token, data });
+  }
+  async function pushMe() {
+    clearTimeout(pushTimer); pushTimer = null;
+    try {
+      const r = await (await fetch(CFG.APPS_SCRIPT_URL, { method: "POST", body: pushBody(), signal: AbortSignal.timeout(20000) })).json();
+      if (r.ok) { quiet = true; store.set(ukey("_ver"), r.updated); store.del(ukey("_dirty")); quiet = false; }
+      else if (r.relogin) loginExpired();
+    } catch { /* 沒網路：留著 _dirty，下次打開網站再存 */ }
+  }
+  if (cloud) {
+    store.onSet = (k) => {
+      if (quiet || !SYNC_KEYS.some((n) => k === ukey(n))) return;
+      quiet = true; store.set(ukey("_dirty"), true); quiet = false;
+      clearTimeout(pushTimer); pushTimer = setTimeout(pushMe, 1500);
+    };
+    // 關掉分頁前還沒存的，用 keepalive 送出去
+    addEventListener("pagehide", () => { if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; try { fetch(CFG.APPS_SCRIPT_URL, { method: "POST", body: pushBody(), keepalive: true }); } catch { /* 下次再存 */ } } });
+  }
+  function loginExpired() {
+    delete users[me.email]; store.set("re_users", users);
+    switchUser(null, "登入已過期，請重新登入。");
+  }
+  async function syncMe() {
+    if (!cloud) return;
+    if (store.get(ukey("_dirty"), false)) { await pushMe(); return; }
+    try {
+      const r = await callApi({ action: "me", token: me.token, since: store.get(ukey("_ver"), 0) });
+      if (!r.ok) { if (r.relogin) loginExpired(); return; }
+      if (r.same) return;
+      putUserData(me.email, r.data, r.updated);
+      // 別台裝置改過：重新載入一次，讓畫面改用最新資料
+      const flag = `re_synced:${r.updated}`;
+      if (sessionStorage.getItem(flag)) return;
+      sessionStorage.setItem(flag, "1");
+      location.reload();
+      await new Promise(() => {});      // 等重新載入，不先畫出舊畫面
+    } catch { /* 連不到後端：先用這台裝置上的資料 */ }
+  }
 
   // ---------- 惜食時段：19:00 起才有惜食價、才能預訂 ----------
   // 白天展示時可以切到「示範時間 19:30」，看傍晚的畫面
@@ -1343,6 +1402,12 @@
       : v.password !== v.password2 ? "兩次輸入的密碼不一樣。"
       : !crypto.subtle ? "這個瀏覽器無法安全保存密碼，請用 http://127.0.0.1 或 https 網址開啟。" : "";
     if (err.textContent) return;
+    if (CFG.APPS_SCRIPT_URL) {
+      // 訪客今天的紀錄、預訂、個人資料帶進新帳號
+      const data = Object.fromEntries(["eaten", "reservations", "profile"].map((k) => [k, store.get(`re_${k}`, null)]).filter(([, x]) => x !== null));
+      await cloudAuth(f, { action: "register", name, email, password: v.password, data }, `歡迎，${name}！帳號已建立。`);
+      return;
+    }
     const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
     users[email] = { name, email, salt, hash: await hashPw(v.password, salt), created: new Date().toISOString() };
     store.set("re_users", users);
@@ -1354,13 +1419,48 @@
     e.preventDefault();
     const f = e.target, err = $(".form-error", f), v = Object.fromEntries(new FormData(f));
     const u = users[v.email.trim().toLowerCase()];
-    if (!u || !crypto.subtle || (await hashPw(v.password, u.salt)) !== u.hash) { err.textContent = "Email 或密碼不正確。"; return; }
+    if (CFG.APPS_SCRIPT_URL) {
+      const email = v.email.trim().toLowerCase();
+      // 以前只存在這台瀏覽器的示範帳號：密碼對的話，連同紀錄自動搬到後端
+      const local = u && u.hash && crypto.subtle && (await hashPw(v.password, u.salt)) === u.hash;
+      await cloudAuth(f, { action: "login", email, password: v.password }, "歡迎回來！",
+        local ? { action: "register", name: u.name, email, password: v.password, data: userData(email) } : null);
+      return;
+    }
+    if (!u ||!crypto.subtle || (await hashPw(v.password, u.salt)) !== u.hash) { err.textContent = "Email 或密碼不正確。"; return; }
     switchUser(u.email, `歡迎回來，${u.name}！`);
   });
-  $("#logoutBtn").addEventListener("click", () => switchUser(null, "已登出。"));
+  // 後端登入／註冊：成功後把帳號資料寫進這台裝置，重新載入
+  async function cloudAuth(form, body, msg, fallback) {
+    const err = $(".form-error", form), btn = $("button[type=submit]", form);
+    err.textContent = ""; btn.disabled = true;
+    try {
+      let r = await callApi(body);
+      if (!r.ok && r.none && fallback) r = await callApi(fallback);
+      if (!r.ok) { err.textContent = r.error || "沒有成功，請再試一次。"; return; }
+      users[r.email] = { name: r.name, email: r.email, token: r.token };
+      store.set("re_users", users);
+      putUserData(r.email, r.data, r.updated);
+      switchUser(r.email, body.action === "login" ? `歡迎回來，${r.name}！` : msg);
+    } catch { err.textContent = "連不到伺服器，請稍後再試。"; }
+    finally { btn.disabled = false; }
+  }
+  $("#logoutBtn").addEventListener("click", async () => {
+    if (cloud) {
+      if (pushTimer) await pushMe();      // 登出前把還沒存的紀錄送出去
+      delete users[me.email]; store.set("re_users", users);    // 登入憑證不留在這台裝置
+    }
+    switchUser(null, "已登出。");
+  });
   const WEEKDAY = "日一二三四五六";
   function renderAccount() {
     $("#authBox").hidden = !!me; $("#meBox").hidden = !me; $("#accountLede").hidden = !!me;
+    if (CFG.APPS_SCRIPT_URL) {
+      $(".demo-warn").textContent = me && !me.token
+        ? "這個帳號目前只存在這台瀏覽器。登出後再登入一次，就會搬到雲端，換手機也能登入。"
+        : "帳號存在 RescuEat 後端，換手機或電腦用同一組 Email 和密碼登入，紀錄都還在。";
+      $(".demo-warn").classList.toggle("is-ok", !(me && !me.token));
+    }
     $("#accountGuest").hidden = !!me; $("#accountMember").hidden = !me;
     if (!me) return;
     $("#meName").textContent = me.name; $("#meMail").textContent = me.email;
@@ -1466,7 +1566,7 @@
     } catch { $("#demoText").textContent = "連不到店家資料，目前顯示示範品項。"; }
   }
   (async function start() {
-    await Promise.all([loadRemote(), syncPosts()]);
+    await Promise.all([loadRemote(), syncPosts(), syncMe()]);
     applyLocalReservations();
     initMap();
     renderAll();

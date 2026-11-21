@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>RescuEat 店家後台</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="img/favicon.png" type="image/png">
+  <meta name="theme-color" content="#FFFFFF">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@900&family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css?v=20261121a">
+  <link rel="stylesheet" href="css/shop.css?v=20261121a">
+</head>
+<body class="shop-page">
+  <header class="sp-top">
+    <a class="brand" href="./" aria-label="回到 RescuEat 首頁">
+      <img src="img/logo.png" alt="" width="40" height="40">
+      <span class="wordmark"><span class="w-g">Rescu</span><span class="w-o">Eat</span></span>
+    </a>
+    <span class="sp-tag">店家後台</span>
+    <span class="sp-who" id="spWho" hidden></span>
+    <button class="linklike" type="button" id="spLogout" hidden>登出</button>
+  </header>
+
+  <main class="sp-main">
+    <!-- 登入 -->
+    <section class="sp-card sp-login" id="spLogin" aria-labelledby="h-login">
+      <h1 id="h-login">店家登入</h1>
+      <p class="hint">用 RescuEat 給你的店家密碼登入。登入後只看得到、改得到你自己店裡的品項和預訂。</p>
+      <form class="auth-form" id="spLoginForm" novalidate>
+        <label>店家<select name="shop" id="spShop" required></select></label>
+        <label>店家密碼<input name="pass" type="password" inputmode="numeric" autocomplete="current-password" required></label>
+        <p class="form-error" role="alert"></p>
+        <button class="btn" type="submit">登入</button>
+      </form>
+    </section>
+
+    <!-- 登入後 -->
+    <div id="spApp" hidden>
+      <section class="sp-card" aria-labelledby="h-items">
+        <div class="sp-head">
+          <h1 id="h-items">今晚的惜食品項</h1>
+          <button class="linklike" type="button" id="spReload">重新整理</button>
+        </div>
+        <p class="hint">改完按下方「儲存」才會更新到網站。不賣的品項，份數改成 0 或按「售完」。</p>
+        <div class="sp-list" id="spItems"></div>
+        <div class="sp-save">
+          <p class="sp-status" id="spStatus" role="status"></p>
+          <button class="btn" type="button" id="spSave" disabled>儲存</button>
+        </div>
+      </section>
+
+      <section class="sp-card" aria-labelledby="h-orders">
+        <div class="sp-head">
+          <h2 id="h-orders">今天的預訂</h2>
+          <span class="sp-count" id="spOrderCount"></span>
+        </div>
+        <p class="hint">學生取餐時出示取餐碼，對照這裡的號碼和品項。已取消的預訂份數已經自動加回去。</p>
+        <ol class="sp-orders" id="spOrders"></ol>
+      </section>
+    </div>
+  </main>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script src="js/config.js?v=20261121a"></script>
+  <script src="data/shops.js?v=20261121a"></script>
+  <script src="js/shop.js?v=20261121a"></script>
+</body>
+</html>

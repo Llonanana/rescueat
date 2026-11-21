@@ -3,12 +3,14 @@
  *
  * 設定步驟（詳見 README「接上 Google 試算表」）：
  *   1. 新增一份 Google 試算表 → 擴充功能 → Apps Script → 貼上本檔並儲存
- *   2. 上方函式選 setup → 執行（第一次要授權），會建好 listings、reservations、posts 三個工作表和示範品項
+ *   2. 上方函式選 setup → 執行（第一次要授權），會建好 listings、reservations、posts、users 工作表和示範品項
+ *      再選 setupShops → 執行，會產生每家店的後台密碼（在下方「執行記錄」看得到）
  *   3. 部署 → 新增部署作業 → 類型「網頁應用程式」；執行身分：我；誰可以存取：所有人
  *   4. 複製網址貼到 js/config.js 的 APPS_SCRIPT_URL
  *   之後改了本檔，要到「管理部署作業」發布新版本才會生效。
  *
- * 店家每天只改 listings 工作表的黃色欄位：qty（剩幾份）、deal（惜食價）、until（取餐截止）。
+ * 店家用網站的「店家後台」（shop.html）登入改自己的品項，不用碰試算表，也看不到別家的資料。
+ * 你自己也可以直接改 listings 工作表的黃色欄位：qty（剩幾份）、deal（惜食價）、until（取餐截止）。
  * 不賣的品項把 qty 改成 0。新增品項時，id 不可重複，shop 用 data/shops.js 裡的店家 id。
  */
 
@@ -85,6 +87,7 @@ function setup() {
     reservations.setFrozenRows(1);
   }
   setupPosts_();
+  userSheet_();
 }
 
 // 已經建好試算表的人，只要再執行一次 setup（或這個函式）就會補上 posts 工作表
@@ -124,6 +127,13 @@ function doPost(e) {
   if (body.action === "like") return toggleLike_(String(body.id || ""), String(body.user || ""));
   if (body.action === "delPost") return delPost_(String(body.id || ""), String(body.user || ""));
   if (body.action === "aiRecipe") return json_(aiRecipe_(body));
+  if (body.action === "register") return json_(register_(body));
+  if (body.action === "login") return json_(login_(body));
+  if (body.action === "me") return json_(me_(body));
+  if (body.action === "saveMe") return json_(saveMe_(body));
+  if (body.action === "shopLogin") return json_(shopLogin_(body));
+  if (body.action === "shopData") return json_(shopData_(body));
+  if (body.action === "shopSave") return json_(shopSave_(body));
   if (body.action === "cancel") return json_(cancel_(String(body.code || ""), Array.isArray(body.itemIds) ? body.itemIds.map(String) : []));
   if (body.action !== "reserve" || !Array.isArray(body.itemIds)) return json_({ error: "unknown action" });
   const lock = LockService.getScriptLock();
@@ -372,6 +382,178 @@ function aiRecipe_(b) {
   const lock = LockService.getScriptLock(); lock.waitLock(10000);
   try { props.setProperty(tk, String(Number(props.getProperty(tk) || 0) + 1)); } finally { lock.releaseLock(); }
   return { ok: true, recipe, left: AI_PER_USER - used - 1 };
+}
+
+// ---------- 會員：帳號存在 users 工作表，換裝置也能登入 ----------
+// 密碼不存明碼：加鹽後重複雜湊。data 是這個會員的飲食紀錄、預訂、收藏、個人資料（JSON）
+// salt、hash 前面加字母，避免試算表把全是數字的字串轉成數字
+const USER_HEAD = ["id", "email", "name", "salt", "hash", "created", "updated", "data"];
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+function userSheet_() {
+  const ss = SpreadsheetApp.getActive();
+  let s = ss.getSheetByName("users");
+  if (!s) {
+    s = ss.insertSheet("users");
+    s.getRange(1, 1, 1, USER_HEAD.length).setValues([USER_HEAD]).setFontWeight("bold");
+    s.getRange(2, 1, FORM_ROWS, USER_HEAD.length).setNumberFormat("@");
+    s.setFrozenRows(1);
+  }
+  return s;
+}
+function findUser_(sheet, col, value) {
+  const rows = sheet.getDataRange().getValues(), c = USER_HEAD.indexOf(col);
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][c]) === value) return { row: i + 1, u: Object.fromEntries(USER_HEAD.map((h, j) => [h, rows[i][j]])) };
+  }
+  return null;
+}
+function hex_(bytes) { return bytes.map((b) => ((b + 256) % 256).toString(16).padStart(2, "0")).join(""); }
+function pwHash_(pw, salt) {
+  let h = `${salt}:${pw}`;
+  for (let i = 0; i < 200; i++) h = hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, h + salt, Utilities.Charset.UTF_8));
+  return "h" + h;
+}
+// 登入憑證：「對象.到期時間.簽章」，簽章金鑰第一次用到時自動產生，存在指令碼屬性
+function secret_() {
+  const props = PropertiesService.getScriptProperties();
+  let s = props.getProperty("TOKEN_SECRET");
+  if (!s) { s = Utilities.getUuid() + Utilities.getUuid(); props.setProperty("TOKEN_SECRET", s); }
+  return s;
+}
+function sign_(s) { return hex_(Utilities.computeHmacSha256Signature(s, secret_())).slice(0, 40); }
+function makeToken_(sub, days) { const p = `${sub}.${Date.now() + days * 864e5}`; return `${p}.${sign_(p)}`; }
+function readToken_(t, kind) {
+  const [k, sub, exp, sig] = String(t || "").split(".");
+  if (k !== kind || !sub || !(+exp > Date.now()) || sign_(`${k}.${sub}.${exp}`) !== sig) return "";
+  return sub;
+}
+// 同一個帳號連續打錯密碼就先擋 10 分鐘
+function tooMany_(key) { return +(CacheService.getScriptCache().get(key) || 0) >= 8; }
+function failed_(key) { const c = CacheService.getScriptCache(); c.put(key, String(+(c.get(key) || 0) + 1), 600); }
+function cleanData_(d) {
+  if (!d || typeof d !== "object" || Array.isArray(d)) return "{}";
+  const s = JSON.stringify(d);
+  return s.length > CELL_MAX ? null : s;
+}
+function userOut_(u, token) {
+  const parse = (s) => { try { return JSON.parse(s || "{}"); } catch (err) { return {}; } };
+  return { ok: true, token, name: String(u.name), email: String(u.email), updated: +u.updated || 0, data: parse(u.data) };
+}
+function register_(b) {
+  const email = String(b.email || "").trim().toLowerCase(), name = clip_(String(b.name || "").trim(), 20), pw = String(b.password || "");
+  if (!name) return { ok: false, error: "請輸入暱稱。" };
+  if (!EMAIL_RE.test(email) || email.length > 100) return { ok: false, error: "Email 格式不正確。" };
+  if (pw.length < 6 || pw.length > 100) return { ok: false, error: "密碼至少要 6 個字元。" };
+  const data = cleanData_(b.data);
+  if (data === null) return { ok: false, error: "帶進帳號的資料太多。" };
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    const sheet = userSheet_();
+    if (findUser_(sheet, "email", email)) return { ok: false, error: "這個 Email 已經註冊過，請直接登入。" };
+    const id = "u" + Utilities.getUuid().replace(/-/g, "").slice(0, 16), salt = "s" + Utilities.getUuid().replace(/-/g, "");
+    const now = Date.now();
+    const u = { id, email, name, salt, hash: pwHash_(pw, salt), created: now, updated: now, data };
+    sheet.appendRow(USER_HEAD.map((h) => u[h]));
+    return userOut_(u, makeToken_(`u.${id}`, 60));
+  } finally { lock.releaseLock(); }
+}
+function login_(b) {
+  const email = String(b.email || "").trim().toLowerCase(), key = `lf:${email}`;
+  if (tooMany_(key)) return { ok: false, error: "密碼錯太多次，請 10 分鐘後再試。" };
+  const f = findUser_(userSheet_(), "email", email);
+  if (!f) return { ok: false, error: "Email 或密碼不正確。", none: true };
+  if (pwHash_(String(b.password || ""), String(f.u.salt)) !== String(f.u.hash)) { failed_(key); return { ok: false, error: "Email 或密碼不正確。" }; }
+  return userOut_(f.u, makeToken_(`u.${f.u.id}`, 60));
+}
+// 打開網站時確認登入還有效；since 和伺服器一樣就不用再傳一次資料
+function me_(b) {
+  const id = readToken_(b.token, "u");
+  const f = id && findUser_(userSheet_(), "id", id);
+  if (!f) return { ok: false, error: "請重新登入。", relogin: true };
+  if (+b.since && +b.since === +f.u.updated) return { ok: true, same: true, updated: +f.u.updated };
+  return userOut_(f.u, b.token);
+}
+function saveMe_(b) {
+  const id = readToken_(b.token, "u");
+  if (!id) return { ok: false, error: "請重新登入。", relogin: true };
+  const data = cleanData_(b.data);
+  if (data === null) return { ok: false, error: "資料太多，存不下。" };
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    const sheet = userSheet_(), f = findUser_(sheet, "id", id);
+    if (!f) return { ok: false, error: "請重新登入。", relogin: true };
+    const now = Math.max(Date.now(), (+f.u.updated || 0) + 1);
+    sheet.getRange(f.row, USER_HEAD.indexOf("updated") + 1, 1, 2).setValues([[now, data]]);
+    return { ok: true, updated: now };
+  } finally { lock.releaseLock(); }
+}
+
+// ---------- 店家後台：每家店用自己的密碼，只看得到、改得到自己的品項 ----------
+// 密碼存在「專案設定 → 指令碼屬性」，名稱是 SHOP_PASS_店家id。第一次執行 setupShops 會自動產生
+function setupShops() {
+  const props = PropertiesService.getScriptProperties();
+  const values = SpreadsheetApp.getActive().getSheetByName("listings").getDataRange().getValues();
+  const shops = [...new Set(values.slice(1).map((r) => String(r[LISTING_HEAD.indexOf("shop")])).filter(Boolean))];
+  shops.forEach((s) => {
+    if (!props.getProperty(`SHOP_PASS_${s}`)) props.setProperty(`SHOP_PASS_${s}`, String(100000 + Math.floor(Math.random() * 900000)));
+    console.log(`${s}：${props.getProperty(`SHOP_PASS_${s}`)}`);
+  });
+}
+function shopLogin_(b) {
+  const shop = String(b.shop || ""), key = `sf:${shop}`;
+  if (tooMany_(key)) return { ok: false, error: "密碼錯太多次，請 10 分鐘後再試。" };
+  const pass = PropertiesService.getScriptProperties().getProperty(`SHOP_PASS_${shop}`);
+  if (!pass) return { ok: false, error: "這家店還沒有開通後台，請聯絡 RescuEat。" };
+  if (String(b.pass || "").trim() !== pass) { failed_(key); return { ok: false, error: "店家密碼不正確。" }; }
+  return { ok: true, token: makeToken_(`s.${shop}`, 14), shop };
+}
+function shopData_(b) {
+  const shop = readToken_(b.token, "s");
+  if (!shop) return { ok: false, error: "請重新登入。", relogin: true };
+  const range = SpreadsheetApp.getActive().getSheetByName("listings").getDataRange();
+  const values = range.getValues(), shown = range.getDisplayValues();
+  const col = (h) => LISTING_HEAD.indexOf(h);
+  const items = [], names = {};
+  values.forEach((r, i) => {
+    if (i === 0 || String(r[col("shop")]) !== shop || !r[col("id")]) return;
+    names[String(r[col("id")])] = String(r[col("name")]);
+    items.push({ id: String(r[col("id")]), name: String(r[col("name")]), cat: String(r[col("cat")]), price: +r[col("price")] || 0,
+                 deal: +r[col("deal")] || 0, qty: +r[col("qty")] || 0, until: time_(shown[i][col("until")]) });
+  });
+  // 今天的預訂：只列出含有這家店品項的，而且只顯示這家店的品項
+  const rs = SpreadsheetApp.getActive().getSheetByName("reservations");
+  const rows = rs.getLastRow() > 1 ? rs.getRange(2, 1, rs.getLastRow() - 1, RESERVATION_HEAD.length + 1).getValues() : [];
+  const today = Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy-MM-dd");
+  const orders = rows.filter((r) => r[0] instanceof Date && Utilities.formatDate(r[0], "Asia/Taipei", "yyyy-MM-dd") === today)
+    .map((r) => ({ time: Utilities.formatDate(r[0], "Asia/Taipei", "HH:mm"), code: String(r[1]),
+                   items: String(r[2]).split(",").filter((id) => names[id]).map((id) => names[id]), status: String(r[4] || "") }))
+    .filter((o) => o.items.length).reverse();
+  return { ok: true, shop, items, orders };
+}
+function shopSave_(b) {
+  const shop = readToken_(b.token, "s");
+  if (!shop) return { ok: false, error: "請重新登入。", relogin: true };
+  const changes = Array.isArray(b.items) ? b.items.slice(0, 100) : [];
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    const sheet = SpreadsheetApp.getActive().getSheetByName("listings"), values = sheet.getDataRange().getValues();
+    const col = (h) => LISTING_HEAD.indexOf(h);
+    for (const c of changes) {
+      const i = values.findIndex((r, n) => n > 0 && String(r[col("id")]) === String(c.id));
+      if (i < 0 || String(values[i][col("shop")]) !== shop) return { ok: false, error: "只能修改自己店裡的品項。" };
+      const price = +values[i][col("price")] || 0, name = values[i][col("name")];
+      if ("qty" in c && !(Number.isInteger(+c.qty) && +c.qty >= 0 && +c.qty <= 999)) return { ok: false, error: `${name}：份數要是 0 到 999 的整數。` };
+      if ("deal" in c && !(+c.deal > 0 && +c.deal <= price)) return { ok: false, error: `${name}：惜食價要大於 0，而且不能高於原價 $${price}。` };
+      if ("until" in c && !/^([01]?\d|2[0-3]):[0-5]\d$/.test(String(c.until))) return { ok: false, error: `${name}：取餐截止請填像 19:30 的時間。` };
+    }
+    for (const c of changes) {
+      const i = values.findIndex((r, n) => n > 0 && String(r[col("id")]) === String(c.id));
+      if ("qty" in c) sheet.getRange(i + 1, col("qty") + 1).setValue(+c.qty);
+      if ("deal" in c) sheet.getRange(i + 1, col("deal") + 1).setValue(+c.deal);
+      if ("until" in c) sheet.getRange(i + 1, col("until") + 1).setNumberFormat("@").setValue(time_(c.until));
+    }
+  } finally { lock.releaseLock(); }
+  return shopData_(b);
 }
 
 // 在編輯器選這個函式按「執行」：第一次會要求「連線到外部服務」的授權，並測試金鑰能不能用

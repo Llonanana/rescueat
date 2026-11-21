@@ -3,9 +3,9 @@
  * Leaflet 與字型「快取優先」：版本固定，不用每次重抓。
  * 地圖圖磚與 Apps Script 不快取：圖磚太多，品項與預訂必須是即時資料。
  */
-const CACHE = "rescueat-v2";
+const CACHE = "rescueat-v3";
 const SHELL = [
-  "./", "index.html", "manifest.webmanifest", "css/style.css", "js/config.js", "js/app.js",
+  "./", "index.html", "shop.html", "css/shop.css", "js/shop.js", "manifest.webmanifest", "css/style.css", "js/config.js", "js/app.js",
   "data/shops.js", "data/listings.js", "data/foods.js", "data/dris.js", "data/recipes.js", "data/stats.js", "data/meals.js",
   "img/logo.png", "img/favicon.png", "img/icons/icon-192.png",
 ];

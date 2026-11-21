@@ -967,3 +967,4 @@ button.ai-chip { font: inherit; font-size: .82rem; cursor: pointer; }
 .att-ai .att-ings { margin: 10px 0 6px; font-size: .84rem; color: var(--ink-2); }
 .att-ai .ai-steps { font-size: .86rem; margin: 0 0 6px; }
 .att-ai .ai-tip { font-size: .8rem; }
+.demo-warn.is-ok { color: var(--green-d); background: var(--green-bg); }

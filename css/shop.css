@@ -1,0 +1,73 @@
+/* RescuEat 店家後台：沿用主站的顏色與表單樣式，版面改成手機也好改的一欄 */
+.sp-top {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 16px;
+  background: var(--paper); border-bottom: 1px solid var(--line);
+}
+.sp-top .brand img { width: 40px; height: 40px; }
+.sp-tag { font-size: .8rem; font-weight: 700; color: var(--ink-2); padding-left: 12px; border-left: 1px solid var(--line); }
+.sp-who { margin-left: auto; font-size: .86rem; color: var(--ink); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.sp-top .linklike { font-size: .86rem; white-space: nowrap; }
+
+.sp-main { max-width: 760px; margin: 0 auto; padding: 20px 16px 120px; display: grid; gap: 16px; }
+.sp-card { background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 20px; }
+.sp-card h1 { font-size: 1.2rem; }
+.sp-card h2 { font-size: 1.05rem; }
+.sp-login { max-width: 420px; width: 100%; justify-self: center; margin-top: 24px; }
+.sp-login .hint { margin: 6px 0 16px; }
+.auth-form select { font: inherit; font-size: .95rem; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 3px; padding: 8px 10px; }
+.sp-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.sp-count { font: 600 1rem var(--num); color: var(--muted); }
+
+/* 品項：一列一樣，手機上名稱一行、欄位一行 */
+.sp-list { margin-top: 12px; border-top: 1px solid var(--line-2); }
+.sp-item {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto 40px; align-items: center; gap: 8px 14px;
+  padding: 12px 0; border-bottom: 1px solid var(--line-2);
+}
+.sp-item.is-changed { background: linear-gradient(90deg, var(--orange-bg), transparent 70%); }
+.sp-item.is-out .sp-name { color: var(--muted); }
+.sp-name { font-weight: 500; line-height: 1.45; }
+.sp-name small { display: block; font-weight: 400; font-size: .76rem; color: var(--muted); }
+.sp-f { display: grid; gap: 2px; font-size: .72rem; color: var(--muted); }
+.sp-f input { font: 600 1.05rem var(--num); color: var(--ink); width: 76px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 3px; background: var(--paper); }
+.sp-f input[name="until"] { width: 70px; }
+.sp-f input::-webkit-outer-spin-button, .sp-f input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.sp-f input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+.sp-f input:focus { border-color: var(--green); outline: 1px solid var(--green); }
+.sp-f input[aria-invalid="true"] { border-color: var(--red); outline: 1px solid var(--red); }
+.sp-deal input { color: var(--orange); }
+.sp-qty { display: flex; align-items: center; }
+.sp-qty input { width: 52px; text-align: center; border-radius: 0; margin: 0 -1px; position: relative; }
+.sp-qty button { width: 34px; height: 35px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font-size: 1.1rem; cursor: pointer; }
+.sp-qty button:first-child { border-radius: 3px 0 0 3px; }
+.sp-qty button:last-of-type { border-radius: 0 3px 3px 0; }
+.sp-qty button:hover { background: var(--green-bg); }
+.sp-out { font-size: .82rem; justify-self: end; align-self: end; padding-bottom: 8px; }
+
+.sp-save {
+  position: sticky; bottom: 0; margin: 0 -20px -20px; padding: 12px 20px;
+  display: flex; align-items: center; justify-content: flex-end; gap: 14px;
+  background: var(--paper); border-top: 1px solid var(--line); border-radius: 0 0 4px 4px;
+}
+.sp-save .btn { padding: 8px 28px; }
+.sp-status { margin: 0 auto 0 0; font-size: .84rem; color: var(--muted); }
+.sp-status.is-err { color: var(--red); }
+
+/* 預訂 */
+.sp-orders { list-style: none; margin: 12px 0 0; padding: 0; border-top: 1px solid var(--line-2); }
+.sp-orders li { display: grid; grid-template-columns: 52px auto minmax(0, 1fr); align-items: baseline; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line-2); }
+.sp-orders .t { font: 500 .95rem var(--num); color: var(--muted); }
+.sp-orders .code { font: 700 1.25rem var(--num); letter-spacing: .06em; color: var(--ink); }
+.sp-orders .its { font-size: .9rem; }
+.sp-orders .off .code, .sp-orders .off .its { color: var(--muted); text-decoration: line-through; }
+.sp-orders .off .its::after { content: "已取消"; display: inline-block; margin-left: 8px; font-size: .72rem; text-decoration: none; color: var(--red); }
+.sp-orders .empty { display: block; color: var(--muted); font-size: .88rem; }
+
+@media (max-width: 600px) {
+  .sp-item { grid-template-columns: auto auto 1fr; grid-template-areas: "name name out" "deal qty until"; }
+  .sp-name { grid-area: name; }
+  .sp-out { grid-area: out; align-self: start; padding: 0; }
+  .sp-deal { grid-area: deal; } .sp-qtyf { grid-area: qty; } .sp-until { grid-area: until; justify-self: end; }
+  .sp-tag { display: none; }
+}
