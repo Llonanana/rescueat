@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RescuEat</title>
+  <!-- 打錯網址（例如 /rescueat/使用者介面、/rescueat/店家）時自動帶到正確的頁面 -->
+  <script>
+    (function () {
+      var p = decodeURIComponent(location.pathname);
+      var base = "/rescueat/";
+      var to = /店家|商家|後台|shop|store|admin/i.test(p) ? base + "shop.html" : base;
+      location.replace(to);
+    })();
+  </script>
+  <style>
+    body { margin: 0; font: 16px/1.7 "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif; background: #F3F4EF; color: #1B2A22; }
+    main { max-width: 480px; margin: 18vh auto 0; padding: 0 16px; }
+    a { color: #1F6B45; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>找不到這個頁面</h1>
+    <p>正在帶你到 RescuEat……沒有自動跳轉的話，請點：</p>
+    <p><a href="/rescueat/">學生網站（剩食地圖）</a><br><a href="/rescueat/shop.html">店家後台</a></p>
+  </main>
+</body>
+</html>
