@@ -18,7 +18,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@900&family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-  <link rel="stylesheet" href="css/style.css?v=20261121c">
+  <link rel="stylesheet" href="css/style.css?v=20261124a">
 </head>
 <body>
   <header class="topbar">
@@ -148,7 +148,7 @@
         <h2 id="h-nutri">今天還差多少營養</h2>
         <p class="lede">用國健署 DRIs 第八版算出你的每日建議量，再記下今天吃了什麼，看看還缺什麼。數值為估算，僅供參考，不是醫療建議。</p>
         <details class="profile-box" id="profileBox">
-          <summary><span class="profile-sum"><b id="profileSum">女・20 歲・160 cm・52 kg・活動稍低</b><small id="profileKcal"></small></span><span class="profile-edit"><span class="when-closed">修改</span><span class="when-open">收起</span></span></summary>
+          <summary><span class="profile-sum"><b id="profileSum">女・20 歲・160 cm・52 kg・每週運動 3–4 次</b><small id="profileKcal"></small></span><span class="profile-edit"><span class="when-closed">修改</span><span class="when-open">收起</span></span></summary>
         <form class="profile" id="profile">
           <label>性別
             <select name="sex"><option>女</option><option>男</option></select>
@@ -156,12 +156,14 @@
           <label>年齡<input name="age" type="number" min="16" max="100" value="20" inputmode="numeric"></label>
           <label>身高 (cm)<input name="height" type="number" min="120" max="220" value="160" inputmode="decimal"></label>
           <label>體重 (kg)<input name="weight" type="number" min="30" max="200" value="52" inputmode="decimal"></label>
-          <label>活動量
-            <select name="activity">
-              <option value="低">低（多坐著）</option>
-              <option value="稍低" selected>稍低（上課、走路）</option>
-              <option value="適度">適度（每天運動）</option>
-              <option value="高">高（勞力、訓練）</option>
+          <label>運動（每次 30 分鐘以上）
+            <select name="exercise">
+              <option value="0">幾乎不運動</option>
+              <option value="1-2">每週 1–2 次</option>
+              <option value="3-4" selected>每週 3–4 次</option>
+              <option value="5-6">每週 5–6 次</option>
+              <option value="7">每天都運動</option>
+              <option value="pro">每天高強度訓練（校隊、體力工作）</option>
             </select>
           </label>
         </form>
@@ -303,7 +305,7 @@
             <h3 class="subhead">會員可以做什麼</h3>
             <ul class="perk-list">
               <li><b>飲食紀錄歷史</b><span>紀錄不會隔天清空，可以切換日期回看，也看得到最近 7 天的熱量趨勢。</span></li>
-              <li><b>個人資料同步</b><span>身高、體重、活動量存在帳號裡，登入就自動帶入。</span></li>
+              <li><b>個人資料同步</b><span>身高、體重、運動次數存在帳號裡，登入就自動帶入。</span></li>
               <li><b>預訂紀錄</b><span>列出過去預訂過的惜食和取餐碼。</span></li>
               <li><b>收藏</b><span>把常吃的餐點、店家品項和喜歡的食譜加到收藏，記錄時排在最上面。</span></li>
               <li><b>惜食點數與徽章</b><span>預訂惜食、記錄飲食、在惜食圈分享都能累積點數，看得到自己救下幾份食物、減少多少碳排。</span></li>
@@ -476,14 +478,14 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <!-- ?v= 是版本號：改了 css 或 js 之後一起改，瀏覽器才不會拿新網頁配舊程式 -->
-  <script src="js/config.js?v=20261121c"></script>
-  <script src="data/shops.js?v=20261121c"></script>
-  <script src="data/listings.js?v=20261121c"></script>
-  <script src="data/foods.js?v=20261121c"></script>
-  <script src="data/dris.js?v=20261121c"></script>
-  <script src="data/recipes.js?v=20261121c"></script>
-  <script src="data/meals.js?v=20261121c"></script>
-  <script src="data/stats.js?v=20261121c"></script>
-  <script src="js/app.js?v=20261121c"></script>
+  <script src="js/config.js?v=20261124a"></script>
+  <script src="data/shops.js?v=20261124a"></script>
+  <script src="data/listings.js?v=20261124a"></script>
+  <script src="data/foods.js?v=20261124a"></script>
+  <script src="data/dris.js?v=20261124a"></script>
+  <script src="data/recipes.js?v=20261124a"></script>
+  <script src="data/meals.js?v=20261124a"></script>
+  <script src="data/stats.js?v=20261124a"></script>
+  <script src="js/app.js?v=20261124a"></script>
 </body>
 </html>

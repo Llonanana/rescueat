@@ -643,8 +643,18 @@
   });
 
   // ---------- 我的營養 ----------
-  const PAL = { 低: 1.3, 稍低: 1.5, 適度: 1.7, 高: 1.9 };
+  // 一週運動幾次 → 活動係數（PAL）與 DRIs 表的活動量欄位（低、稍低、適度、高）
+  const EXERCISE = {
+    "0":   { pal: 1.3,  level: "低",   label: "幾乎不運動" },
+    "1-2": { pal: 1.4,  level: "低",   label: "每週運動 1–2 次" },
+    "3-4": { pal: 1.5,  level: "稍低", label: "每週運動 3–4 次" },
+    "5-6": { pal: 1.65, level: "適度", label: "每週運動 5–6 次" },
+    "7":   { pal: 1.75, level: "適度", label: "每天運動" },
+    "pro": { pal: 1.9,  level: "高",   label: "每天高強度訓練" },
+  };
+  const FROM_OLD_ACTIVITY = { 低: "0", 稍低: "3-4", 適度: "5-6", 高: "pro" };   // 舊版存的活動量換成運動次數
   const profile = store.get(ukey("profile"), null);
+  if (profile && !profile.exercise && profile.activity) profile.exercise = FROM_OLD_ACTIVITY[profile.activity];
   if (profile) for (const [k, v] of Object.entries(profile)) { const el = $(`#profile [name=${k}]`); if (el) el.value = v; }
   function readProfile() {
     const fd = new FormData($("#profile"));
@@ -652,15 +662,16 @@
     store.set(ukey("profile"), p);
     // 輸入到一半或超出範圍時，用合理範圍內的值計算
     const within = (v, lo, hi, d) => Math.min(hi, Math.max(lo, +v || d));
-    return { sex: p.sex, age: within(p.age, 16, 100, 20), height: within(p.height, 120, 220, 160), weight: within(p.weight, 30, 200, 55), activity: p.activity };
+    return { sex: p.sex, age: within(p.age, 16, 100, 20), height: within(p.height, 120, 220, 160), weight: within(p.weight, 30, 200, 55), exercise: EXERCISE[p.exercise] ? p.exercise : "3-4" };
   }
   function needsFor(p) {
     const age = Math.max(16, p.age);
     const row = DRIS.find((r) => r["性別"] === p.sex && r["年齡下限"] <= age && age <= r["年齡上限"]);
     const bmr = 10 * p.weight + 6.25 * p.height - 5 * age + (p.sex === "男" ? 5 : -161);
-    const kcal = Math.round(bmr * PAL[p.activity]);
-    const tableKcal = row[`熱量_${p.activity}`];
-    const fiber = row[`fiber_${p.activity}`] ?? row["fiber_適度"];
+    const ex = EXERCISE[p.exercise];
+    const kcal = Math.round(bmr * ex.pal);
+    const tableKcal = row[`熱量_${ex.level}`];
+    const fiber = row[`fiber_${ex.level}`] ?? row["fiber_適度"];
     return {
       row, bmr, kcal, tableKcal,
       targets: [
@@ -690,9 +701,9 @@
   function renderNutrition() {
     const p = readProfile();
     const N = needsFor(p);
-    $("#energyNote").textContent = `每日熱量約 ${fmt(N.kcal)} 大卡：基礎代謝 ${fmt(N.bmr)} 大卡（依你的身高體重年齡）× 活動係數 ${PAL[p.activity]}。` +
-      (N.tableKcal ? `DRIs 表同年齡同性別的參考值為 ${fmt(N.tableKcal)} 大卡。` : "");
-    $("#profileSum").textContent = `${p.sex}・${p.age} 歲・${p.height} cm・${p.weight} kg・活動${p.activity}`;
+    $("#energyNote").textContent = `每日熱量約 ${fmt(N.kcal)} 大卡：基礎代謝 ${fmt(N.bmr)} 大卡（依你的身高體重年齡）× 活動係數 ${EXERCISE[p.exercise].pal}（${EXERCISE[p.exercise].label}）。` +
+      (N.tableKcal ? `DRIs 表同年齡同性別、活動量「${EXERCISE[p.exercise].level}」的參考值為 ${fmt(N.tableKcal)} 大卡。` : "");
+    $("#profileSum").textContent = `${p.sex}・${p.age} 歲・${p.height} cm・${p.weight} kg・${EXERCISE[p.exercise].label}`;
     $("#profileKcal").textContent = `每日約 ${fmt(N.kcal)} 大卡`;
     // 每筆紀錄：名稱與說明在左，熱量靠右對齊，方便一眼加總
     const row = (i, name, kcal, note) => `<li><div class="eaten-name"><span>${name}</span>${note ? `<small>${note}</small>` : ""}</div><span class="eaten-kcal">${fmt(kcal)}<small>大卡</small></span><button data-del="${i}" aria-label="刪除 ${name}">刪除</button></li>`;
