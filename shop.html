@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@900&family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=20261124a">
-  <link rel="stylesheet" href="css/shop.css?v=20261124a">
+  <link rel="stylesheet" href="css/style.css?v=20261125a">
+  <link rel="stylesheet" href="css/shop.css?v=20261125a">
 </head>
 <body class="shop-page">
   <header class="sp-top">
@@ -39,6 +39,15 @@
 
     <!-- 登入後 -->
     <div id="spApp" hidden>
+      <section class="sp-card" aria-labelledby="h-week">
+        <div class="sp-head">
+          <h2 id="h-week">本週成效</h2>
+          <span class="sp-count">近 7 天</span>
+        </div>
+        <dl class="sp-week" id="spWeek"></dl>
+        <p class="hint" id="spWeekNote"></p>
+      </section>
+
       <section class="sp-card" aria-labelledby="h-items">
         <div class="sp-head">
           <h1 id="h-items">今晚的惜食品項</h1>
@@ -59,14 +68,57 @@
         </div>
         <p class="hint">學生取餐時出示取餐碼，對照這裡的號碼和品項。已取消的預訂份數已經自動加回去。</p>
         <ol class="sp-orders" id="spOrders"></ol>
+        <div id="spRedeemWrap" hidden>
+          <h3 class="sp-sub">今天的點數兌換</h3>
+          <p class="hint">學生出示 P 開頭的兌換碼，對照這裡給優惠。</p>
+          <ol class="sp-orders" id="spRedeems"></ol>
+        </div>
+      </section>
+
+      <section class="sp-card" aria-labelledby="h-profile">
+        <h2 id="h-profile">店家介紹與點數優惠</h2>
+        <p class="hint">會顯示在剩食地圖你的店名下方。沒填的不會顯示。</p>
+        <form class="sp-profile" id="spProfile" novalidate>
+          <label>今晚公告<small>60 字內，例如「今天滷肉飯多，加點滷蛋送一顆」</small><input name="note" maxlength="60"></label>
+          <label>店家介紹<small>150 字內：招牌菜、特色、用料</small><textarea name="intro" rows="3" maxlength="150"></textarea></label>
+          <div class="sp-perk-row">
+            <label>點數優惠<small>學生用惜食點數兌換，例如「加購滷蛋一顆」</small><input name="perk" maxlength="30"></label>
+            <label class="sp-pts">需要點數<small>20–1000</small><input name="perkPts" type="number" min="20" max="1000" step="10" inputmode="numeric"></label>
+          </div>
+          <p class="hint">惜食點數：學生預訂 1 份 +10、發文 +5、記錄飲食 1 天 +2。100 點約等於在這裡預訂 10 份。</p>
+          <div class="sp-profile-act"><p class="sp-status" id="spProfileStatus" role="status"></p><button class="btn" type="submit">儲存店家資料</button></div>
+        </form>
+      </section>
+
+      <section class="sp-card" aria-labelledby="h-qr">
+        <h2 id="h-qr">店門口 QR code 立牌</h2>
+        <p class="hint">印出來放在櫃台或門口：路過的學生掃了就直接看到你店今晚的惜食，也能收藏你的店，之後有剩食會提醒他。</p>
+        <div class="sp-qr-row">
+          <div class="sp-qr" id="spQr" aria-label="QR code"></div>
+          <div>
+            <p class="sp-qr-url" id="spQrUrl"></p>
+            <button class="btn" type="button" id="spPrint">列印立牌</button>
+          </div>
+        </div>
       </section>
     </div>
   </main>
 
   <div class="toast" id="toast" role="status" hidden></div>
 
-  <script src="js/config.js?v=20261124a"></script>
-  <script src="data/shops.js?v=20261124a"></script>
-  <script src="js/shop.js?v=20261124a"></script>
+  <!-- 列印用的立牌：只有列印時顯示 -->
+  <div class="sp-poster" id="spPoster" aria-hidden="true">
+    <img src="img/logo.png" alt="" width="120" height="120">
+    <p class="pp-shop" id="ppShop"></p>
+    <p class="pp-big">打烊前的惜食<br>掃描馬上看今晚還剩什麼</p>
+    <div class="pp-qr" id="ppQr"></div>
+    <p class="pp-small">打烊前的惜食價・線上預訂、到店取餐・收藏店家，有剩食會提醒你</p>
+    <p class="pp-brand">RescuEat 政大惜食地圖</p>
+  </div>
+
+  <script src="js/config.js?v=20261125a"></script>
+  <script src="data/shops.js?v=20261125a"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+  <script src="js/shop.js?v=20261125a"></script>
 </body>
 </html>

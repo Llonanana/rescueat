@@ -18,6 +18,7 @@
   const CATS = ["主食", "蛋白質", "蔬菜"];
 
   let items = window.RE_LISTINGS.items.map((x) => ({ ...x }));
+  let shopInfo = {};        // 店家在後台填的介紹、今晚公告、點數優惠（接上後端時才有）
   const $ = (sel, el = document) => el.querySelector(sel);
   const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -49,12 +50,12 @@
   const dayEaten = () => eatenAll.filter((e) => e.d === viewDate);
   const saveEaten = () => store.set(ukey("eaten"), eatenAll);
   const dayName = (d = viewDate) => (d === today() ? "今天" : `${+d.slice(5, 7)}/${+d.slice(8)}`);
-  const favs = { meals: [], menu: [], recipes: [], ...store.get(ukey("favs"), {}) };
+  const favs = { meals: [], menu: [], recipes: [], shops: [], ...store.get(ukey("favs"), {}) };
   const saveFavs = () => store.set(ukey("favs"), favs);
 
   // ---------- 雲端會員：接上後端時帳號存在試算表 users 工作表，換裝置登入資料還在 ----------
   // 這幾樣資料一改就（延遲 1.5 秒）整包存到後端；打開網站時若別台裝置改過，就換成後端的版本
-  const SYNC_KEYS = ["eaten", "reservations", "profile", "favs", "badges"];
+  const SYNC_KEYS = ["eaten", "reservations", "profile", "favs", "badges", "redeems"];
   const cloud = !!(me && me.token && CFG.APPS_SCRIPT_URL);
   const callApi = async (body) => (await fetch(CFG.APPS_SCRIPT_URL, { method: "POST", body: JSON.stringify(body), signal: AbortSignal.timeout(20000) })).json();
   const userData = (email) => Object.fromEntries(SYNC_KEYS.map((k) => [k, store.get(`re_u:${email}:${k}`, null)]).filter(([, v]) => v !== null));
@@ -100,6 +101,7 @@
     try {
       const r = await callApi({ action: "me", token: me.token, since: store.get(ukey("_ver"), 0) });
       if (!r.ok) { if (r.relogin) loginExpired(); return; }
+      if (r.spent != null) { quiet = true; store.set(ukey("spent"), r.spent); quiet = false; }   // 兌換用掉的點數，以後端為準
       if (r.same) return;
       putUserData(me.email, r.data, r.updated);
       // 別台裝置改過：重新載入一次，讓畫面改用最新資料
@@ -362,16 +364,33 @@
     const until = list.map((x) => x.until).sort()[0];
     return `<header class="shop-head">
       <div>
-        <h3>${esc(s.name)}</h3>
+        <h3>${esc(s.name)}${star("shops", s.id, s.name)}</h3>
         <p>${esc(s.type)}，步行約 ${walkMin(m)} 分鐘（${distLabel(m)}）</p>
       </div>
       <div class="shop-when">
         ${until ? `<span class="until">${esc(until)} 前取餐</span>` : ""}
         <a href="${walkLink([s.id])}" target="_blank" rel="noopener">路線</a>
       </div>
-    </header>`;
+    </header>${shopAbout(s)}`;
   }
+  // 店家公告（今晚）與介紹：店家在後台自己填，沒填就不顯示
+  function shopAbout(s) {
+    const info = shopInfo[s.id] || {};
+    return (info.note ? `<p class="shop-note"><b>店家公告</b>${esc(info.note)}</p>` : "")
+      + (info.intro || info.perk ? `<details class="shop-intro"><summary>認識這家店</summary>
+          ${info.intro ? `<p>${esc(info.intro)}</p>` : ""}
+          <p class="meta">${esc(s.addr)}・${esc(s.hours)}</p>
+          ${info.perk ? `<p class="shop-perk">點數優惠：<b>${esc(info.perk)}</b>（${fmt(info.perkPts)} 點，到「我的帳號」兌換）</p>` : ""}
+        </details>` : "");
+  }
+  // 收藏的店今晚有惜食：摘要下方提醒，點了直接看那家店
+  const favLive = () => favs.shops.filter((id) => shopById[id] && liveOf(id).length);
   function renderSummary() {
+    renderSummaryMain();
+    const fl = favLive();
+    if (fl.length) $("#tonight").insertAdjacentHTML("beforeend", `<p class="tonight-fav">★ 你收藏的 ${fl.map((id) => `<button class="linklike" data-focus-shop="${esc(id)}">${esc(shortName(shopById[id]))}</button>`).join("、")} 今晚有惜食</p>`);
+  }
+  function renderSummaryMain() {
     const live = items.filter((x) => x.qty > 0);
     const shops = new Set(live.map((x) => x.shop));
     const best = live.reduce((m, x) => Math.max(m, saveOf(x)), 0);
@@ -436,7 +455,7 @@
       protein: (a, b) => (b.protein ?? -1) - (a.protein ?? -1),
     }[filt.sort];
     list.sort((a, b) => (b.qty > 0) - (a.qty > 0) || by(a, b));
-    const shopIds = [...new Set(list.map((x) => x.shop))].sort((a, b) => distOf(a) - distOf(b));
+    const shopIds = [...new Set(list.map((x) => x.shop))].sort((a, b) => favs.shops.includes(b) - favs.shops.includes(a) || distOf(a) - distOf(b));
     const sel = filt.shop ? shopById[filt.shop] : null;
     $("#shopFilter").innerHTML = sel ? `只看 <b>${esc(sel.name)}</b> <button class="linklike" id="clearShop">看全部店家</button>` : "";
     $("#shopFilter").hidden = !sel;
@@ -528,7 +547,7 @@
     if (CFG.APPS_SCRIPT_URL) {
       toast("預訂中…");
       try {
-        const res = await fetch(CFG.APPS_SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "reserve", itemIds: pendingIds, code, demo: demoClock }) });
+        const res = await fetch(CFG.APPS_SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "reserve", itemIds: pendingIds, code, demo: demoClock, user: myId || deviceId }) });
         const data = await res.json();
         if (!data.ok) { toast(/開放/.test(data.error || "") ? data.error : "有品項剛被訂走了，請重新整理後再試一次。"); return; }
       } catch { toast("預訂沒有送出，請檢查網路後再試一次。"); return; }
@@ -744,18 +763,32 @@
         <div class="bar ${over ? "over" : ""}" role="img" aria-label="${t.label} ${fmt(pct)}%"><span style="width:${Math.min(100, pct)}%"></span></div>
         <span class="v">${fmt(got, d)} / ${fmt(t.need)} ${t.unit}<small class="${over ? "is-over" : done ? "is-done" : ""}">${status}</small></span></div>`;
     }).join("");
-    // 下一餐：剩餘熱量的 45% 當作這一餐的額度，優先補蛋白質
+    // 下一餐的熱量額度依時段：惜食在傍晚以後，通常是今天最後一餐，給剩餘熱量的 90%；下午 60%；上午 45%
+    const hour = +nowHM().slice(0, 2);
+    const share = hour >= 17 ? 0.9 : hour >= 14 ? 0.6 : 0.45;
     const leftKcal = Math.max(0, N.kcal - (T.energy_kcal || 0));
-    const mealKcal = leftKcal * 0.45;
+    const mealKcal = leftKcal * share;
     const gapP = Math.max(0, N.row.protein_g - (T.protein_g || 0));
     const cand = items.filter((x) => x.cat === "完整餐盒" && x.qty > 0 && x.kcal);
     const scored = cand.map((x) => {
-      const cover = gapP ? Math.min(x.protein, gapP) / gapP : 0;
-      const over = Math.max(0, x.kcal - mealKcal * 1.1) / Math.max(mealKcal, 1);
-      return { x, s: cover - over, cover };
+      // 主要分數：能補上今天蛋白質缺口的比例；蛋白質已經夠了，改看熱量有多接近這餐的額度
+      const fit = gapP ? Math.min(x.protein, gapP) / gapP : Math.max(0, 1 - Math.abs(x.kcal - mealKcal) / Math.max(mealKcal, 1));
+      const over = Math.max(0, x.kcal - mealKcal * 1.1) / Math.max(mealKcal, 1);   // 超過額度 110% 的部分扣分
+      const save = saveOf(x) / x.price;                                            // 省下的比例：八折是 0.2
+      const est = x.nsrc === "official" ? 0 : 0.05;                                // 營養是估算的，稍微往後排
+      return { x, s: fit - over + 0.3 * save - est, fit };
     }).sort((a, b) => b.s - a.s).slice(0, 3);
-    $("#nextHint").textContent = `你今天還剩約 ${fmt(leftKcal)} 大卡、蛋白質還差 ${fmt(gapP, 1)} g。下一餐以 ${fmt(mealKcal)} 大卡為額度，優先補蛋白質。`;
-    $("#nextMeal").innerHTML = scored.map(({ x, cover }) => itemRow(x, { showShop: true, note: gapP ? `可補今天蛋白質缺口的 ${fmt(cover * 100)}%` : "今天蛋白質已達建議量" })).join("")
+    const when = hour >= 17 ? "晚上通常是今天最後一餐，用剩餘熱量的 90%" : hour >= 14 ? "下午用剩餘熱量的 60%" : "白天用剩餘熱量的 45%";
+    $("#nextHint").textContent = leftKcal <= 0
+      ? `今天的熱量已經達到建議量${gapP ? `，蛋白質還差 ${fmt(gapP, 1)} g` : ""}。下面是熱量最低、最不會超過的選擇。`
+      : `你今天還剩約 ${fmt(leftKcal)} 大卡、蛋白質還差 ${fmt(gapP, 1)} g。下一餐以 ${fmt(mealKcal)} 大卡為額度（${when}），${gapP ? "優先補蛋白質" : "蛋白質已經夠了，找熱量剛好的"}，同分時選省比較多的。`;
+    const why = (x, fit) => [
+      gapP ? `可補今天蛋白質缺口的 ${fmt(fit * 100)}%` : `${fmt(x.kcal)} 大卡，${Math.abs(x.kcal - mealKcal) <= mealKcal * 0.15 ? "接近" : x.kcal < mealKcal ? "低於" : "高於"}這餐額度`,
+      x.kcal > mealKcal * 1.1 && leftKcal > 0 ? `超過額度 ${fmt(x.kcal - mealKcal)} 大卡` : "",
+      `省 $${saveOf(x)}`,
+      x.nsrc === "official" ? "" : "營養為估算值",
+    ].filter(Boolean).join("・");
+    $("#nextMeal").innerHTML = scored.map(({ x, fit }) => itemRow(x, { showShop: true, note: why(x, fit) })).join("")
       || `<li class="empty">今晚的完整餐盒都訂完了。</li>`;
   }
   $("#profile").addEventListener("input", renderNutrition);
@@ -963,20 +996,56 @@
     aiHint();
     $(`#aiUses [data-ai-skip="${CSS.escape(x)}"]`)?.focus();
   });
+  // AI 只負責想料理；熱量與蛋白質用 AI 給的食材公克數，對照食藥署資料（今天訂的惜食用店家的數字）重新加總
+  const WATER = /^(水|開水|熱水|冷水|冰塊)$/;
+  function aiNutrition(r) {
+    const rescued = reservations.flatMap((x) => x.items || []).filter((x) => x.kcal != null);
+    let kcal = 0, protein = 0, total = 0, hit = 0;
+    const rows = [];
+    for (const ing of r.ingredients) {
+      const g = +ing.grams || 0, name = ing.name;
+      if (WATER.test(name)) continue;
+      const dish = rescued.find((x) => name.includes(x.name) || x.name.includes(name));
+      if (dish) {
+        const w = g || 300;
+        kcal += dish.kcal; protein += dish.protein || 0; total += w; hit += w;
+        rows.push(`${esc(name)}：用店家${dish.nsrc === "official" ? "標示" : "估算"}的整份 ${fmt(dish.kcal)} 大卡`);
+        continue;
+      }
+      if (!g) { rows.push(`${esc(name)}：沒有份量，未計入`); continue; }
+      total += g;
+      const f = searchFoods(name)[0];
+      if (!f) { rows.push(`${esc(name)} ${fmt(g)} g：食藥署資料找不到，未計入`); continue; }
+      kcal += (f.energy_kcal || 0) * g / 100; protein += (f.protein_g || 0) * g / 100; hit += g;
+      rows.push(`${esc(name)} ${fmt(g)} g → 食藥署「${esc(friendly(f).main)}」${fmt((f.energy_kcal || 0) * g / 100)} 大卡`);
+    }
+    const cover = total ? hit / total : 0;
+    return { kcal: Math.round(kcal), protein: Math.round(protein * 10) / 10, cover, rows, ok: hit > 0 && cover >= 0.7 };
+  }
+  // 能對到 7 成以上的食材重量，就改用重算的數字；分享到惜食圈時也帶這組數字
+  function withCalc(r) {
+    const n = aiNutrition(r);
+    return n.ok ? { ...r, aiKcal: r.kcal, aiProtein: r.protein, kcal: n.kcal, protein: n.protein, calc: true, calcRows: n.rows, cover: n.cover }
+      : { ...r, calc: false, calcRows: n.rows, cover: n.cover };
+  }
   function aiCard(r) {
     const k = EQ_KEY[r.equip] || "mw";
+    const lab = r.calc ? "" : "（AI 估）";
     return `<article class="recipe ai-recipe eq-${k}">
       <div class="recipe-top"><span class="equip eq-${k}">${esc(r.equip)}</span><span class="ai-tag">AI 產生</span></div>
       <h4>${esc(r.name)}</h4>
-      <ul class="recipe-ings">${r.ingredients.map((x) => `<li>${esc(x.name)}<small>${esc(x.amount)}</small></li>`).join("")}</ul>
+      <ul class="recipe-ings">${r.ingredients.map((x) => `<li>${esc(x.name)}<small>${esc(x.amount)}${x.grams ? `・${fmt(x.grams)} g` : ""}</small></li>`).join("")}</ul>
       <dl class="recipe-stats">
-        <div><dt>熱量（估）</dt><dd>${fmt(r.kcal)}<small>大卡</small></dd></div>
-        <div><dt>蛋白質（估）</dt><dd>${fmt(r.protein, 1)}<small>g</small></dd></div>
+        <div><dt>熱量${lab}</dt><dd>${fmt(r.kcal)}<small>大卡</small></dd></div>
+        <div><dt>蛋白質${lab}</dt><dd>${fmt(r.protein, 1)}<small>g</small></dd></div>
         <div><dt>時間</dt><dd>${r.minutes}<small>分鐘</small></dd></div>
       </dl>
       <ol class="ai-steps">${r.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
       ${r.tip ? `<p class="ai-tip">${esc(r.tip)}</p>` : ""}
-      <p class="ai-note">AI 產生的食譜，未經營養師審閱；熱量與蛋白質為估算值，僅供參考。</p>
+      ${r.calcRows && r.calcRows.length ? `<details class="ai-calc"><summary>${r.calc ? `營養依食藥署資料計算（對到 ${fmt(r.cover * 100)}% 的食材重量）` : `只對到 ${fmt(r.cover * 100)}% 的食材，先顯示 AI 的估計`}</summary>
+        <ul>${r.calcRows.map((x) => `<li>${x}</li>`).join("")}</ul>
+        ${r.calc ? `<p>AI 原本估計 ${fmt(r.aiKcal)} 大卡、蛋白質 ${fmt(r.aiProtein, 1)} g。</p>` : ""}</details>` : ""}
+      <p class="ai-note">AI 產生的食譜，未經營養師審閱；${r.calc ? "熱量與蛋白質由食藥署資料加總，份量是 AI 估的，" : "熱量與蛋白質為 AI 估算值，"}僅供參考。</p>
       <button type="button" class="linklike made-it" data-share-ai>我做了這道，分享到惜食圈（+${POINTS.post} 點）</button>
     </article>`;
   }
@@ -995,8 +1064,8 @@
         body: JSON.stringify({ action: "aiRecipe", equip: [...rSel.equip], ings: [...rSel.ing], rescued: aiRescued(), extra, user: myId || deviceId }) });
       const data = await res.json();
       if (!data.ok) { err.textContent = data.error || "AI 暫時沒有回應，等一下再試。"; $("#aiOut").innerHTML = ""; return; }
-      aiLast = data.recipe;
-      $("#aiOut").innerHTML = aiCard(data.recipe);
+      aiLast = withCalc(data.recipe);
+      $("#aiOut").innerHTML = aiCard(aiLast);
       btn.dataset.again = "1";
       toast(`AI 食譜好了・今天還能用 ${data.left} 次`);
     } catch (e) {
@@ -1047,7 +1116,10 @@
     { id: "share", mark: "享", name: "第一次分享", how: "在惜食圈發一篇貼文", ok: (s) => s.posts >= 1 },
   ];
   const levelOf = (p) => { let i = LEVELS.length - 1; while (p < LEVELS[i][0]) i--; return { name: LEVELS[i][1], at: LEVELS[i][0], next: LEVELS[i + 1] }; };
-  const updateAccountBtn = () => { $("#accountName").textContent = me ? `${me.name}・${fmt(myStats().points)} 點` : "登入"; };
+  // 可用點數 = 累積點數 − 兌換用掉的（等級看累積點數，兌換不會降級）
+  const spentPts = () => store.get(ukey("spent"), 0);
+  const leftPts = () => myStats().points - spentPts();
+  const updateAccountBtn = () => { $("#accountName").textContent = me ? `${me.name}・${fmt(leftPts())} 點` : "登入"; };
   // 新解鎖的徽章：只有會員會累積，每個只提示一次
   function newBadges() {
     if (!me) return [];
@@ -1062,7 +1134,7 @@
     const pct = lv.next ? (s.points - lv.at) / (lv.next[0] - lv.at) * 100 : 100;
     $("#achBox").innerHTML = `<div class="ach-level">
         <p class="ach-name">${esc(lv.name)}</p>
-        <p class="ach-pts"><b>${fmt(s.points)}</b><span>惜食點數</span></p>
+        <p class="ach-pts"><b>${fmt(s.points)}</b><span>累積惜食點數${spentPts() ? `・可用 ${fmt(s.points - spentPts())} 點` : ""}</span></p>
         <div class="ach-bar"><span style="width:${pct}%"></span></div>
         <p class="hint">${lv.next ? `再 ${fmt(lv.next[0] - s.points)} 點升到「${lv.next[1]}」` : "已經是最高等級"}・預訂 1 份 +${POINTS.rescue}、發文 +${POINTS.post}、有記錄飲食的每一天 +${POINTS.logDay}</p>
       </div>
@@ -1073,7 +1145,7 @@
         <div><dt>減少碳排</dt><dd>${fmt(s.co2, 1)}<small>kg CO₂e</small></dd></div>
         <div><dt>連續記錄</dt><dd>${fmt(s.streak)}<small>天</small></dd></div>
       </dl>
-      <p class="hint">食物重量與碳排是估算：每份約 ${KG_PER_MEAL} kg、每公斤食物浪費約 ${CO2_PER_KG} kg CO₂e（FAO）。正式上線後，點數預計可以和合作店家兌換優惠（洽談中）。</p>`;
+      <p class="hint">食物重量與碳排是估算：每份約 ${KG_PER_MEAL} kg、每公斤食物浪費約 ${CO2_PER_KG} kg CO₂e（FAO）。點數可以在下方兌換合作店家的優惠。</p>`;
     const got = BADGES.filter((b) => b.ok(s));
     $("#badgeCount").textContent = `${got.length}／${BADGES.length}`;
     $("#badgeList").innerHTML = BADGES.map((b) => { const on = b.ok(s); return `<li class="${on ? "is-on" : ""}">
@@ -1389,7 +1461,8 @@
     const list = favs[kind], i = list.indexOf(key);
     i < 0 ? list.push(key) : list.splice(i, 1);
     saveFavs(); renderQuick(); renderRecipes();
-    toast(i < 0 ? "已加入收藏" : "已取消收藏");
+    if (kind === "shops") renderListings();
+    toast(i < 0 ? (kind === "shops" ? "已收藏這家店：今晚有惜食時，剩食地圖最上面會提醒你。" : "已加入收藏") : "已取消收藏");
   });
   const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
   const hashPw = async (pw, salt) => hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${salt}:${pw}`)));
@@ -1453,6 +1526,7 @@
       users[r.email] = { name: r.name, email: r.email, token: r.token };
       store.set("re_users", users);
       putUserData(r.email, r.data, r.updated);
+      store.set(`re_u:${r.email}:spent`, r.spent || 0);
       switchUser(r.email, body.action === "login" ? `歡迎回來，${r.name}！` : msg);
     } catch { err.textContent = "連不到伺服器，請稍後再試。"; }
     finally { btn.disabled = false; }
@@ -1477,6 +1551,7 @@
     if (!me) return;
     $("#meName").textContent = me.name; $("#meMail").textContent = me.email;
     renderAchievements();
+    renderPerks();
     // 最近 7 天：每天的熱量，對照每日建議量
     const need = needsFor(readProfile()).kcal;
     const days = [...Array(7)].map((_, i) => {
@@ -1513,6 +1588,36 @@
       ? `<ul>${list.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>`
       : `<p class="hint">還沒有收藏。在${where(view)}點 ☆ 就能收藏。</p>`}<a class="linklike" href="#${view}">前往${where(view)}</a></section>`).join("");
   }
+  // 點數兌換：店家在後台設定優惠，會員用點數換，拿兌換碼到店給店員看
+  function renderPerks() {
+    const left = leftPts(), list = SHOPS.filter((s) => shopInfo[s.id] && shopInfo[s.id].perk);
+    const mine = store.get(ukey("redeems"), []);
+    $("#perkLeft").textContent = `可用 ${fmt(left)} 點`;
+    $("#perkBox").innerHTML = (list.length ? `<ul class="perks">${list.map((s) => {
+      const p = shopInfo[s.id], enough = left >= p.perkPts;
+      return `<li><div class="perk-what"><b>${esc(p.perk)}</b><small>${esc(s.name)}</small></div>
+        <span class="perk-pts">${fmt(p.perkPts)}<small>點</small></span>
+        <button type="button" class="btn ${enough ? "" : "ghost"}" data-redeem="${esc(s.id)}" ${enough && cloud ? "" : "disabled"}>${enough ? "兌換" : `還差 ${fmt(p.perkPts - left)} 點`}</button></li>`;
+    }).join("")}</ul>` : `<p class="hint">合作店家還沒有提供點數優惠，之後會在這裡出現。</p>`)
+      + (mine.length ? `<h4 class="perk-mine-h">我的兌換碼</h4><ul class="perk-mine">${[...mine].reverse().map((r) => `<li><b class="h-code">${esc(r.code)}</b>
+          <span>${esc(shortName(shopById[r.shop] || { name: r.shop }))}：${esc(r.perk)}</span><small>${dayName(dayOf(r.at))}・${fmt(r.pts)} 點</small></li>`).join("")}</ul>` : "")
+      + `<p class="hint">兌換後到店出示兌換碼，店員會在店家後台核對。${cloud ? "" : "接上後端並登入會員才能兌換。"}</p>`;
+  }
+  $("#perkBox").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-redeem]"); if (!b || !cloud) return;
+    const s = shopById[b.dataset.redeem], p = shopInfo[s.id];
+    if (!confirm(`用 ${p.perkPts} 點兌換 ${shortName(s)} 的「${p.perk}」？\n兌換後到店出示兌換碼給店員。`)) return;
+    b.disabled = true;
+    try {
+      if (pushTimer) await pushMe();                 // 先把最新的紀錄存上去，後端才算得到最新點數
+      const r = await callApi({ action: "redeem", token: me.token, shop: s.id });
+      if (!r.ok) { if (r.relogin) loginExpired(); toast(r.error || "兌換沒有成功，請再試一次。"); b.disabled = false; return; }
+      quiet = true; store.set(ukey("spent"), r.spent); quiet = false;
+      store.set(ukey("redeems"), [...store.get(ukey("redeems"), []), { code: r.code, shop: s.id, perk: r.perk, pts: r.pts, at: new Date().toISOString() }]);
+      renderAccount(); updateAccountBtn();
+      toast(`兌換成功！兌換碼 ${r.code}，到 ${shortName(s)} 出示給店員。`);
+    } catch { toast("連不到伺服器，請稍後再試。"); b.disabled = false; }
+  });
   $("#weekChart").addEventListener("click", (e) => {
     const b = e.target.closest("[data-goto-day]"); if (!b) return;
     viewDate = b.dataset.gotoDay;
@@ -1573,6 +1678,7 @@
       if (!Array.isArray(data.items)) throw new Error("bad data");
       // 店家 id 打錯的品項先略過，不讓一筆錯字弄壞整頁
       items = data.items.filter((x) => shopById[x.shop]);
+      shopInfo = data.shops || {};
       $("#demoText").textContent = "品項與份數來自店家試算表，重新整理可看到最新狀況。";
       $("#resetDemo").hidden = true;
     } catch { $("#demoText").textContent = "連不到店家資料，目前顯示示範品項。"; }
@@ -1590,5 +1696,12 @@
     $("#favOnlyWrap").hidden = !me;
     try { const m = sessionStorage.getItem("re_flash"); if (m) { sessionStorage.removeItem("re_flash"); setTimeout(() => toast(m), 300); } } catch { /* 不支援時略過 */ }
     if (viewFromHash() !== "map") showView(viewFromHash());
+    const qShop = new URLSearchParams(location.search).get("shop");
+    if (shopById[qShop]) { selectShop(qShop); setTimeout(() => toast(`這是 ${shopById[qShop].name} 今晚的惜食，點 ☆ 收藏這家店，有剩食時會提醒你。`), 400); }
+    else {
+      // 收藏的店今晚有惜食：每天提醒一次
+      const fl = favLive(), k = ukey("fav_alert");
+      if (fl.length && store.get(k, "") !== today()) { quiet = true; store.set(k, today()); quiet = false; setTimeout(() => toast(`你收藏的 ${fl.map((id) => shortName(shopById[id])).join("、")} 今晚有惜食！`), 900); }
+    }
   })();
 })();

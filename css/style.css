@@ -968,3 +968,35 @@ button.ai-chip { font: inherit; font-size: .82rem; cursor: pointer; }
 .att-ai .ai-steps { font-size: .86rem; margin: 0 0 6px; }
 .att-ai .ai-tip { font-size: .8rem; }
 .demo-warn.is-ok { color: var(--green-d); background: var(--green-bg); }
+
+/* 店家公告、介紹、收藏 */
+.shop-head h3 .star { font-size: 1rem; vertical-align: 1px; }
+.shop-note { margin: 8px 0 0; padding: 6px 10px; font-size: .86rem; color: var(--ink); background: var(--orange-bg); border-radius: 3px; }
+.shop-note b { margin-right: 8px; font-size: .74rem; color: var(--orange-d); }
+.shop-intro { margin: 6px 0 0; font-size: .84rem; }
+.shop-intro summary { cursor: pointer; color: var(--green); font-size: .8rem; width: max-content; }
+.shop-intro p { margin: 6px 0 0; color: var(--ink-2); }
+.shop-intro .meta { color: var(--muted); font-size: .78rem; }
+.shop-perk b { color: var(--orange-d); }
+.tonight-fav { margin: 6px 0 0 !important; font-size: .86rem; color: #8A6400; }
+.tonight-fav .linklike { font-weight: 700; }
+
+/* 點數兌換 */
+.perks { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line-2); }
+.perks li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--line-2); }
+.perk-what b { display: block; font-weight: 500; }
+.perk-what small { color: var(--muted); font-size: .78rem; }
+.perk-pts { font: 700 1.2rem var(--num); color: var(--orange); white-space: nowrap; }
+.perk-pts small { font: 400 .74rem var(--font, inherit); color: var(--muted); margin-left: 2px; }
+.perks .btn { padding: 6px 16px; white-space: nowrap; }
+.perk-mine-h { margin: 14px 0 4px; font-size: .9rem; }
+.perk-mine { list-style: none; margin: 0; padding: 0; }
+.perk-mine li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: baseline; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line-2); font-size: .86rem; }
+.perk-mine small { color: var(--muted); }
+.perk-box > .hint { margin-top: 8px; }
+
+/* AI 食譜：營養怎麼算的 */
+.ai-calc { margin: 0 0 8px; font-size: .8rem; color: var(--ink-2); }
+.ai-calc summary { cursor: pointer; color: var(--green); }
+.ai-calc ul { margin: 6px 0; padding-left: 18px; }
+.ai-calc p { margin: 0; color: var(--muted); }

@@ -89,7 +89,68 @@
       : `<li class="empty">今天還沒有人預訂。</li>`;
     refresh();
     $("#spStatus").textContent = ""; $("#spStatus").classList.remove("is-err");
+    renderWeek(r.week);
+    renderProfile(r.profile || {});
+    const rd = r.redeems || [];
+    $("#spRedeemWrap").hidden = !rd.length;
+    $("#spRedeems").innerHTML = rd.map((x) => `<li><span class="t">${esc(x.time)}</span><b class="code">${esc(x.code)}</b><span class="its">${esc(x.perk)}（${x.pts} 點）</span></li>`).join("");
+    renderQr();
   }
+
+  // ---------- 本週成效 ----------
+  const num = (n, d = 0) => Number(n || 0).toLocaleString("zh-TW", { maximumFractionDigits: d });
+  function renderWeek(w) {
+    if (!w) { $("#spWeek").innerHTML = ""; return; }
+    $("#spWeek").innerHTML = [
+      ["賣出", num(w.meals), "份"], ["惜食收入", `$${num(w.revenue)}`, ""], ["少丟的食物", num(w.kg, 1), "kg"],
+      ["減少碳排", num(w.co2, 1), "kg CO₂e"], ["客人", num(w.people), "位"], ["回頭客", num(w.returning), "位"],
+    ].map(([t, v, u]) => `<div><dt>${t}</dt><dd>${v}<small>${u}</small></dd></div>`).join("");
+    $("#spWeekNote").textContent = w.meals
+      ? `共 ${num(w.orders)} 筆預訂（不含取消）${w.redeems ? `、${num(w.redeems)} 次點數兌換` : ""}。收入以目前惜食價計算，是原本可能要丟掉的餐點換回來的。回頭客是近 30 天在你店裡訂過 2 次以上的人。食物重量與碳排以每份 0.35 kg、每公斤 2.5 kg CO₂e 估算。`
+      : "這週還沒有透過 RescuEat 的預訂。打烊前一小時更新剩幾份，學生就會在剩食地圖上看到你。";
+  }
+
+  // ---------- 店家介紹、今晚公告、點數優惠 ----------
+  function renderProfile(p) {
+    const f = $("#spProfile");
+    f.note.value = p.note || ""; f.intro.value = p.intro || ""; f.perk.value = p.perk || ""; f.perkPts.value = p.perkPts || "";
+    $("#spProfileStatus").textContent = ""; $("#spProfileStatus").classList.remove("is-err");
+  }
+  $("#spProfile").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const f = e.target, st = $("#spProfileStatus"), btn = $("button", f);
+    const v = { note: f.note.value.trim(), intro: f.intro.value.trim(), perk: f.perk.value.trim(), perkPts: +f.perkPts.value || 0 };
+    if (v.perk && !(v.perkPts >= 20 && v.perkPts <= 1000)) { st.textContent = "有填點數優惠的話，需要點數請填 20 到 1000。"; st.classList.add("is-err"); return; }
+    if (changes().length && !confirm("上面的品項還有修改沒有儲存，儲存店家資料後會重新讀取、放棄那些修改。要繼續嗎？")) return;
+    btn.disabled = true; st.textContent = "儲存中…"; st.classList.remove("is-err");
+    try {
+      const r = await call({ action: "shopProfile", token: session.token, ...v });
+      if (!r.ok) { expired(r); st.textContent = r.error || ""; st.classList.add("is-err"); return; }
+      render(r);
+      toast("店家資料已儲存，剩食地圖上馬上看得到。");
+    } catch { st.textContent = "連不到伺服器，請再試一次。"; st.classList.add("is-err"); }
+    finally { btn.disabled = false; }
+  });
+
+  // ---------- 店門口 QR code：掃了直接打開這家店今晚的惜食 ----------
+  const shopUrl = () => new URL(`./?shop=${encodeURIComponent(session.shop)}`, location.href).href;
+  function qrSvg(text) {
+    if (typeof qrcode !== "function") return "";
+    const q = qrcode(0, "M"); q.addData(text); q.make();
+    return q.createSvgTag({ cellSize: 8, margin: 2, scalable: true });
+  }
+  function renderQr() {
+    const url = shopUrl(), svg = qrSvg(url);
+    $("#spQr").innerHTML = svg || `<p class="hint">QR code 產生器沒有載入，請檢查網路後重新整理。</p>`;
+    $("#spQrUrl").textContent = url;
+    $("#spPrint").disabled = !svg;
+  }
+  $("#spPrint").addEventListener("click", () => {
+    const s = SHOPS.find((x) => x.id === session.shop);
+    $("#ppShop").textContent = s ? s.name : session.shop;
+    $("#ppQr").innerHTML = qrSvg(shopUrl());
+    window.print();
+  });
 
   // 和後端的值比較，只送出有改的欄位
   function changes() {

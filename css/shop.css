@@ -71,3 +71,47 @@
   .sp-deal { grid-area: deal; } .sp-qtyf { grid-area: qty; } .sp-until { grid-area: until; justify-self: end; }
   .sp-tag { display: none; }
 }
+
+/* 本週成效 */
+.sp-week { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 18px; margin: 12px 0 6px; }
+.sp-week div { border-top: 2px solid var(--ink); padding-top: 6px; min-width: 0; }
+.sp-week dt { font-size: .76rem; color: var(--muted); }
+.sp-week dd { margin: 0; font: 700 1.6rem/1.15 var(--num); font-variant-numeric: tabular-nums; color: var(--ink); }
+.sp-week dd small { font: 400 .74rem var(--font, inherit); color: var(--muted); margin-left: 3px; }
+.sp-week div:nth-child(2) dd { color: var(--green); }
+
+/* 店家介紹與點數優惠 */
+.sp-sub { font-size: .95rem; margin: 18px 0 2px; }
+.sp-profile { display: grid; gap: 12px; margin-top: 12px; }
+.sp-profile label { display: grid; gap: 4px; font-size: .84rem; font-weight: 500; color: var(--ink); }
+.sp-profile label small { font-weight: 400; color: var(--muted); font-size: .74rem; }
+.sp-profile input, .sp-profile textarea { font: inherit; font-size: .95rem; color: var(--ink); padding: 8px 10px; border: 1px solid var(--line); border-radius: 3px; background: var(--paper); resize: vertical; }
+.sp-profile input:focus, .sp-profile textarea:focus { border-color: var(--green); outline: 1px solid var(--green); }
+.sp-perk-row { display: grid; grid-template-columns: minmax(0, 1fr) 140px; gap: 12px; }
+.sp-profile-act { display: flex; align-items: center; justify-content: flex-end; gap: 14px; }
+
+/* QR code */
+.sp-qr-row { display: flex; align-items: center; gap: 20px; margin-top: 12px; }
+.sp-qr { width: 140px; flex: none; }
+.sp-qr svg { display: block; width: 100%; height: auto; }
+.sp-qr-url { font: .8rem var(--num); color: var(--muted); overflow-wrap: anywhere; margin: 0 0 10px; }
+
+.sp-poster { display: none; }
+@media print {
+  body.shop-page > *:not(.sp-poster) { display: none !important; }
+  body.shop-page { background: #fff; }
+  .sp-poster { display: flex !important; flex-direction: column; align-items: center; text-align: center; padding-top: 10mm; color: #1B2A22; }
+  .pp-shop { font-size: 26pt; font-weight: 700; margin: 6mm 0 2mm; }
+  .pp-big { font-size: 20pt; font-weight: 700; line-height: 1.4; margin: 0 0 8mm; }
+  .pp-qr { width: 110mm; }
+  .pp-qr svg { width: 100%; height: auto; display: block; }
+  .pp-small { font-size: 12pt; margin: 6mm 0 2mm; }
+  .pp-brand { font-size: 12pt; color: #1F6B45; font-weight: 700; }
+}
+
+@media (max-width: 600px) {
+  .sp-week { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sp-perk-row { grid-template-columns: minmax(0, 1fr); }
+  .sp-pts input { max-width: 140px; }
+  .sp-qr-row { flex-direction: column; align-items: flex-start; }
+}

@@ -22,6 +22,7 @@ const ALLOW_DEMO = true;
 
 const LISTING_HEAD = ["id", "shop", "name", "cat", "price", "deal", "qty", "until", "kcal", "protein", "nsrc", "nnote", "micro", "fried"];
 const RESERVATION_HEAD = ["time", "code", "itemIds", "items"];
+const RES_BY_COL = RESERVATION_HEAD.length + 2;   // 第 5 欄 status（取消），第 6 欄 by（訂的人：會員或裝置代號，算回頭客用）
 // 惜食圈貼文。by 是會員代號（email 的雜湊，不存 email 本身），likes 存按讚的會員代號
 // ai：分享 AI 食譜時附上的整道食譜（JSON）
 const POST_HEAD = ["id", "at", "by", "name", "kind", "text", "img", "recipe", "item", "rate", "likes", "ai"];
@@ -205,7 +206,7 @@ function doGet(e) {
     .map((x) => ({ ...x, price: +x.price || 0, deal: +x.deal || 0, qty: +x.qty || 0,
                    kcal: x.kcal === "" ? null : +x.kcal, protein: x.protein === "" ? null : +x.protein,
                    micro: x.micro === true || x.micro === "TRUE", fried: x.fried === true || x.fried === "TRUE" }));
-  return json_({ items });
+  return json_({ items, shops: shopProfiles_() });
 }
 
 function doPost(e) {
@@ -222,6 +223,8 @@ function doPost(e) {
   if (body.action === "shopLogin") return json_(shopLogin_(body));
   if (body.action === "shopData") return json_(shopData_(body));
   if (body.action === "shopSave") return json_(shopSave_(body));
+  if (body.action === "shopProfile") return json_(shopProfile_(body));
+  if (body.action === "redeem") return json_(redeem_(body));
   if (body.action === "cancel") return json_(cancel_(String(body.code || ""), Array.isArray(body.itemIds) ? body.itemIds.map(String) : []));
   if (body.action !== "reserve" || !Array.isArray(body.itemIds)) return json_({ error: "unknown action" });
   const lock = LockService.getScriptLock();
@@ -242,8 +245,9 @@ function doPost(e) {
       const row = rowOf(id);
       sheet.getRange(row + 1, qtyCol + 1).setValue(Number(values[row][qtyCol]) - 1);
     }
-    SpreadsheetApp.getActive().getSheetByName("reservations")
-      .appendRow([new Date(), body.code, body.itemIds.join(","), body.itemIds.map((id) => values[rowOf(id)][nameCol]).join("、")]);
+    const rs = SpreadsheetApp.getActive().getSheetByName("reservations");
+    if (rs.getRange(1, RES_BY_COL).getDisplayValue() !== "by") rs.getRange(1, RESERVATION_HEAD.length + 1, 1, 2).setValues([["status", "by"]]).setFontWeight("bold");
+    rs.appendRow([new Date(), body.code, body.itemIds.join(","), body.itemIds.map((id) => values[rowOf(id)][nameCol]).join("、"), "", clip_(body.user, 40)]);
     return json_({ ok: true, code: body.code });
   } finally {
     lock.releaseLock();
@@ -296,10 +300,17 @@ function cleanAi_(a) {
     name: clip_(a.name, 30), equip: EQUIPS.includes(a.equip) ? a.equip : "微波爐",
     minutes: Math.max(1, Math.min(60, Math.round(+a.minutes || 10))),
     kcal: Math.max(0, Math.round(+a.kcal || 0)), protein: Math.max(0, Math.round((+a.protein || 0) * 10) / 10),
-    ingredients: list(a.ingredients, 10).map((x) => ({ name: clip_(x && x.name, 20), amount: clip_(x && x.amount, 20) })).filter((x) => x.name),
+    ingredients: list(a.ingredients, 10).map(cleanIng_).filter((x) => x.name),
     steps: list(a.steps, 8).map((s) => clip_(s, 120)).filter(Boolean),
-    tip: clip_(a.tip, 120),
+    tip: clip_(a.tip, 120), calc: a.calc === true,
   };
+}
+// 食材：名稱、份量文字、公克數（網站用來以食藥署資料重算營養）
+function cleanIng_(x) {
+  const g = Math.round(+(x && x.grams) || 0);
+  const o = { name: clip_(x && x.name, 20), amount: clip_(x && x.amount, 20) };
+  if (g > 0 && g <= 2000) o.grams = g;
+  return o;
 }
 function readPosts_() {
   const sheet = postSheet_();
@@ -383,7 +394,7 @@ const AI_SCHEMA = {
     minutes: { type: "INTEGER" },
     kcal: { type: "INTEGER" },
     protein: { type: "NUMBER" },
-    ingredients: { type: "ARRAY", items: { type: "OBJECT", properties: { name: { type: "STRING" }, amount: { type: "STRING" } }, required: ["name", "amount"] } },
+    ingredients: { type: "ARRAY", items: { type: "OBJECT", properties: { name: { type: "STRING" }, amount: { type: "STRING" }, grams: { type: "NUMBER" } }, required: ["name", "amount", "grams"] } },
     steps: { type: "ARRAY", items: { type: "STRING" } },
     tip: { type: "STRING" },
   },
@@ -415,7 +426,7 @@ function aiRecipe_(b) {
     "以上面的食材為主，可以另外假設有鹽、醬油、糖、胡椒、食用油、水這些基本調味料，其他食材盡量不要加。",
     "30 分鐘內做完，步驟 3 到 6 步，每步一句話、寫出微波或加熱的時間。",
     "剩菜或惜食要加熱到全熱、冒煙；生肉、生蛋要煮到全熟。",
-    "kcal 與 protein（公克）是整份的估算值；ingredients 的 amount 寫份量，例如「1 碗」「100 g」。",
+    "kcal 與 protein（公克）是整份的估算值；ingredients 的 name 寫單純的食材名稱（例如「雞蛋」「白飯」，不要加形容詞），amount 寫份量，例如「1 碗」「1 顆」，grams 寫這個份量大約幾公克（數字）。今天的惜食用原本的品名。",
     "tip 寫一句保存或變化的小提醒。",
   ].filter(Boolean).join("\n");
   const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -460,7 +471,7 @@ function aiRecipe_(b) {
     name: clip_(r.name, 30), equip: EQUIPS.includes(r.equip) ? r.equip : (equip[0] || "微波爐"),
     minutes: Math.max(1, Math.min(60, Math.round(+r.minutes || 10))),
     kcal: Math.max(0, Math.round(+r.kcal || 0)), protein: Math.max(0, Math.round((+r.protein || 0) * 10) / 10),
-    ingredients: (Array.isArray(r.ingredients) ? r.ingredients : []).slice(0, 10).map((x) => ({ name: clip_(x && x.name, 20), amount: clip_(x && x.amount, 20) })).filter((x) => x.name),
+    ingredients: (Array.isArray(r.ingredients) ? r.ingredients : []).slice(0, 10).map(cleanIng_).filter((x) => x.name),
     steps: (Array.isArray(r.steps) ? r.steps : []).slice(0, 8).map((s) => clip_(s, 120)).filter(Boolean),
     tip: clip_(r.tip, 120),
   };
@@ -525,7 +536,8 @@ function cleanData_(d) {
 }
 function userOut_(u, token) {
   const parse = (s) => { try { return JSON.parse(s || "{}"); } catch (err) { return {}; } };
-  return { ok: true, token, name: String(u.name), email: String(u.email), updated: +u.updated || 0, data: parse(u.data) };
+  const spent = redeemRows_().filter((x) => x.by === String(u.id)).reduce((t, x) => t + x.pts, 0);
+  return { ok: true, token, name: String(u.name), email: String(u.email), updated: +u.updated || 0, data: parse(u.data), spent };
 }
 function register_(b) {
   const email = String(b.email || "").trim().toLowerCase(), name = clip_(String(b.name || "").trim(), 20), pw = String(b.password || "");
@@ -558,7 +570,8 @@ function me_(b) {
   const id = readToken_(b.token, "u");
   const f = id && findUser_(userSheet_(), "id", id);
   if (!f) return { ok: false, error: "請重新登入。", relogin: true };
-  if (+b.since && +b.since === +f.u.updated) return { ok: true, same: true, updated: +f.u.updated };
+  if (+b.since && +b.since === +f.u.updated) return { ok: true, same: true, updated: +f.u.updated,
+    spent: redeemRows_().filter((x) => x.by === id).reduce((t, x) => t + x.pts, 0) };
   return userOut_(f.u, b.token);
 }
 function saveMe_(b) {
@@ -610,14 +623,139 @@ function shopData_(b) {
   });
   // 今天的預訂：只列出含有這家店品項的，而且只顯示這家店的品項
   const rs = SpreadsheetApp.getActive().getSheetByName("reservations");
-  const rows = rs.getLastRow() > 1 ? rs.getRange(2, 1, rs.getLastRow() - 1, RESERVATION_HEAD.length + 1).getValues() : [];
+  const rows = rs.getLastRow() > 1 ? rs.getRange(2, 1, rs.getLastRow() - 1, RESERVATION_HEAD.length + 2).getValues() : [];
   const today = Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy-MM-dd");
   const orders = rows.filter((r) => r[0] instanceof Date && Utilities.formatDate(r[0], "Asia/Taipei", "yyyy-MM-dd") === today)
     .map((r) => ({ time: Utilities.formatDate(r[0], "Asia/Taipei", "HH:mm"), code: String(r[1]),
                    items: String(r[2]).split(",").filter((id) => names[id]).map((id) => names[id]), status: String(r[4] || "") }))
     .filter((o) => o.items.length).reverse();
-  return { ok: true, shop, items, orders };
+  return { ok: true, shop, items, orders, profile: shopProfiles_()[shop] || {}, week: weekReport_(shop, values, rows),
+           redeems: redeemsOf_(shop, today) };
 }
+
+// ---------- 店家介紹、今晚公告、點數優惠（店家在後台自己填，存在 shops 工作表） ----------
+const SHOP_HEAD = ["shop", "intro", "note", "perk", "perkPts", "updated"];
+const SHOP_LIMIT = { intro: 150, note: 60, perk: 30 };
+function shopSheet_() {
+  const ss = SpreadsheetApp.getActive();
+  let s = ss.getSheetByName("shops");
+  if (!s) {
+    s = ss.insertSheet("shops");
+    s.getRange(1, 1, 1, SHOP_HEAD.length).setValues([SHOP_HEAD]).setFontWeight("bold");
+    s.getRange(2, 1, 50, SHOP_HEAD.length).setNumberFormat("@");
+    s.setFrozenRows(1);
+  }
+  return s;
+}
+function shopProfiles_() {
+  const s = SpreadsheetApp.getActive().getSheetByName("shops");
+  if (!s || s.getLastRow() < 2) return {};
+  const out = {};
+  s.getRange(2, 1, s.getLastRow() - 1, SHOP_HEAD.length).getDisplayValues().forEach((r) => {
+    if (!r[0]) return;
+    const o = { intro: r[1], note: r[2] };
+    if (r[3] && +r[4]) { o.perk = r[3]; o.perkPts = +r[4]; }
+    out[r[0]] = o;
+  });
+  return out;
+}
+function shopProfile_(b) {
+  const shop = readToken_(b.token, "s");
+  if (!shop) return { ok: false, error: "請重新登入。", relogin: true };
+  const v = {};
+  for (const k of ["intro", "note", "perk"]) v[k] = clip_(String(b[k] || "").trim(), SHOP_LIMIT[k]);
+  const pts = Math.round(+b.perkPts || 0);
+  if (v.perk && !(pts >= 20 && pts <= 1000)) return { ok: false, error: "兌換點數請填 20 到 1000 之間。" };
+  const safe = (x) => (/^[=+\-@]/.test(x) ? "'" + x : x);    // 開頭是 = 的文字不要被當成公式
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    const sheet = shopSheet_(), ids = sheet.getRange(1, 1, sheet.getLastRow(), 1).getDisplayValues().map((r) => r[0]);
+    const row = [shop, safe(v.intro), safe(v.note), safe(v.perk), v.perk ? String(pts) : "", new Date().toISOString()];
+    const i = ids.indexOf(shop);
+    if (i > 0) sheet.getRange(i + 1, 1, 1, SHOP_HEAD.length).setValues([row]); else sheet.appendRow(row);
+  } finally { lock.releaseLock(); }
+  return shopData_(b);
+}
+
+// 本週成效（近 7 天，不含已取消）：賣出份數、惜食收入（以目前惜食價計）、少丟的食物與減碳、客人數與回頭客
+const KG_PER_MEAL = 0.35, CO2_PER_KG = 2.5;      // 和網站「惜食成就」相同的假設
+function weekReport_(shop, listing, rows) {
+  const col = (h) => LISTING_HEAD.indexOf(h);
+  const deal = {};
+  listing.forEach((r, i) => { if (i > 0 && String(r[col("shop")]) === shop) deal[String(r[col("id")])] = +r[col("deal")] || 0; });
+  const since = Date.now() - 7 * 864e5, since30 = Date.now() - 30 * 864e5;
+  const mine = rows.filter((r) => r[0] instanceof Date && String(r[4] || "") !== "已取消")
+    .map((r) => ({ t: r[0].getTime(), ids: String(r[2]).split(",").filter((id) => id in deal), by: String(r[5] || "") }))
+    .filter((o) => o.ids.length);
+  const week = mine.filter((o) => o.t >= since);
+  const meals = week.reduce((t, o) => t + o.ids.length, 0);
+  // 回頭客：這週有來、而且近 30 天在這家店訂過 2 次以上的人
+  const visits = {};
+  mine.filter((o) => o.t >= since30 && o.by).forEach((o) => { visits[o.by] = (visits[o.by] || 0) + 1; });
+  const people = [...new Set(week.map((o) => o.by).filter(Boolean))];
+  return {
+    orders: week.length, meals, revenue: week.reduce((t, o) => t + o.ids.reduce((s, id) => s + deal[id], 0), 0),
+    kg: Math.round(meals * KG_PER_MEAL * 10) / 10, co2: Math.round(meals * KG_PER_MEAL * CO2_PER_KG * 10) / 10,
+    people: people.length, returning: people.filter((p) => visits[p] >= 2).length,
+    redeems: redeemsOf_(shop, "", since).length,
+  };
+}
+
+// ---------- 惜食點數兌換：會員用點數換店家提供的優惠，產生兌換碼給店員看 ----------
+// 點數和網站的算法相同：預訂 1 份 +10、發文 +5、有記錄飲食的每一天 +2；用掉的點數記在 redeems 工作表
+const REDEEM_HEAD = ["time", "code", "shop", "by", "perk", "pts"];
+function redeemSheet_() {
+  const ss = SpreadsheetApp.getActive();
+  let s = ss.getSheetByName("redeems");
+  if (!s) {
+    s = ss.insertSheet("redeems");
+    s.getRange(1, 1, 1, REDEEM_HEAD.length).setValues([REDEEM_HEAD]).setFontWeight("bold");
+    s.setFrozenRows(1);
+  }
+  return s;
+}
+function redeemRows_() {
+  const s = SpreadsheetApp.getActive().getSheetByName("redeems");
+  if (!s || s.getLastRow() < 2) return [];
+  return s.getRange(2, 1, s.getLastRow() - 1, REDEEM_HEAD.length).getValues()
+    .map((r) => ({ at: r[0] instanceof Date ? r[0] : new Date(r[0]), code: String(r[1]), shop: String(r[2]), by: String(r[3]), perk: String(r[4]), pts: +r[5] || 0 }));
+}
+function redeemsOf_(shop, day, since) {
+  return redeemRows_().filter((x) => x.shop === shop && (!day || Utilities.formatDate(x.at, "Asia/Taipei", "yyyy-MM-dd") === day) && (!since || x.at.getTime() >= since))
+    .map((x) => ({ time: Utilities.formatDate(x.at, "Asia/Taipei", "HH:mm"), code: x.code, perk: x.perk, pts: x.pts })).reverse();
+}
+// 和網站相同的會員代號（email 的 FNV-1a 雜湊），用來數這個會員發了幾篇文
+function idOf_(email) {
+  let h = 2166136261;
+  for (const c of String(email).toLowerCase()) { h ^= c.codePointAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  return "u" + h.toString(36);
+}
+function earnedPoints_(u) {
+  let d = {}; try { d = JSON.parse(u.data || "{}"); } catch (err) { d = {}; }
+  const rescued = (Array.isArray(d.reservations) ? d.reservations : []).reduce((t, r) => t + ((r && (r.items || r.itemIds)) || []).length, 0);
+  const days = new Set((Array.isArray(d.eaten) ? d.eaten : []).map((e) => e && e.d).filter(Boolean)).size;
+  const me = idOf_(u.email), ps = postSheet_();
+  const nPosts = ps.getLastRow() > 1 ? ps.getRange(2, POST_HEAD.indexOf("by") + 1, ps.getLastRow() - 1, 1).getDisplayValues().filter((r) => r[0] === me).length : 0;
+  return rescued * 10 + nPosts * 5 + days * 2;
+}
+function redeem_(b) {
+  const id = readToken_(b.token, "u");
+  if (!id) return { ok: false, error: "請先登入會員。", relogin: true };
+  const shop = String(b.shop || ""), perk = shopProfiles_()[shop];
+  if (!perk || !perk.perk) return { ok: false, error: "這家店目前沒有點數優惠。" };
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    const f = findUser_(userSheet_(), "id", id);
+    if (!f) return { ok: false, error: "請重新登入。", relogin: true };
+    const spent = redeemRows_().filter((x) => x.by === id).reduce((t, x) => t + x.pts, 0);
+    const left = earnedPoints_(f.u) - spent;
+    if (left < perk.perkPts) return { ok: false, error: `點數不夠：需要 ${perk.perkPts} 點，你還有 ${left} 點。` };
+    const code = "P" + String(Math.floor(1000 + Math.random() * 9000));
+    redeemSheet_().appendRow([new Date(), code, shop, id, perk.perk, perk.perkPts]);
+    return { ok: true, code, perk: perk.perk, pts: perk.perkPts, left: left - perk.perkPts, spent: spent + perk.perkPts };
+  } finally { lock.releaseLock(); }
+}
+
 function shopSave_(b) {
   const shop = readToken_(b.token, "s");
   if (!shop) return { ok: false, error: "請重新登入。", relogin: true };
